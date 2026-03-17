@@ -200,54 +200,82 @@ export default function ReportsPage() {
       alert('Por favor seleccione ambas fechas de inicio y fin')
       return
     }
-
     if (filterMode === 'factura' && !facturaFilter) {
-      alert('Por favor ingrese el número de factura')
+      alert('Por favor seleccione un número de factura')
       return
     }
 
     setIsExporting(true)
-
     try {
-      const requestBody: any = {}
-      
-      // Add areaId if selected
-      if (selectedArea) {
-        requestBody.areaId = selectedArea
-      }
-      
-      // Add filters based on mode
+      const params = new URLSearchParams()
       if (filterMode === 'period') {
-        requestBody.startDate = startDate
-        requestBody.endDate = endDate
+        params.append('startDate', startDate!)
+        params.append('endDate', endDate!)
       } else {
-        requestBody.factura = facturaFilter
+        params.append('factura', facturaFilter!)
+      }
+      if (selectedArea) {
+        params.append('areaId', selectedArea)
       }
 
-      const response = await fetch('/api/generate-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      })
-
+      const response = await fetch(`/api/generate-report?${params.toString()}`)
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Report generation failed')
+        throw new Error('Failed to generate report')
       }
 
-      // Download the Excel file
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Reporte_Fuel_${new Date().toISOString().split('T')[0]}.xlsx`
+      a.download = 'Reporte de Combustible.xlsx'
       document.body.appendChild(a)
       a.click()
-      document.body.removeChild(a)
       window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
     } catch (error) {
-      console.error('Error generating report:', error)
       alert(error instanceof Error ? error.message : 'Failed to generate report')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleGenerateSummary = async () => {
+    if (filterMode === 'period' && (!startDate || !endDate)) {
+      alert('Seleccioná un período o número de factura para generar el resumen')
+      return
+    }
+    if (filterMode === 'factura' && !facturaFilter) {
+      alert('Seleccioná un período o número de factura para generar el resumen')
+      return
+    }
+
+    setIsExporting(true)
+    try {
+      const params = new URLSearchParams()
+      if (filterMode === 'period') {
+        params.append('startDate', startDate!)
+        params.append('endDate', endDate!)
+      } else {
+        params.append('factura', facturaFilter!)
+      }
+      // NOTE: Do NOT include areaId - summary should always include all areas
+
+      const response = await fetch(`/api/generate-summary?${params.toString()}`)
+      if (!response.ok) {
+        throw new Error('Failed to generate summary report')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'Resumen Ejecutivo.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to generate summary report')
     } finally {
       setIsExporting(false)
     }
@@ -302,6 +330,10 @@ export default function ReportsPage() {
             <Button onClick={handleGenerateReport} disabled={isExporting || filteredData.length === 0}>
               <Download className="w-4 h-4 mr-2" />
               {isExporting ? 'Generando...' : 'Generar Reporte'}
+            </Button>
+            <Button onClick={handleGenerateSummary} disabled={isExporting || filteredData.length === 0}>
+              <Download className="w-4 h-4 mr-2" />
+              {isExporting ? 'Generando...' : 'Resumen Ejecutivo'}
             </Button>
           </div>
         </div>
