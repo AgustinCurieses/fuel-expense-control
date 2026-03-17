@@ -1,0 +1,287 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/database'
+import * as XLSX from 'xlsx'
+
+export async function POST(request: NextRequest) {
+  try {
+    const formData = await request.formData()
+    const file = formData.get('file') as File
+    const useAlternativeImporte = formData.get('useAlternativeImporte') === 'true'
+    
+    if (!file) {
+      return NextResponse.json(
+        { error: 'No file provided' },
+        { status: 400 }
+      )
+    }
+
+    // Read the Excel file
+    const buffer = await file.arrayBuffer()
+    const workbook = XLSX.read(buffer, { type: 'buffer' })
+    const sheetName = workbook.SheetNames[0]
+    const worksheet = workbook.Sheets[sheetName]
+    const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][]
+
+    if (data.length < 2) {
+      return NextResponse.json(
+        { error: 'Excel file must have at least a header row and one data row' },
+        { status: 400 }
+      )
+    }
+
+    // Get column mappings from database - COMPLETE 11 FIELD MAPPINGS
+    let mappings = {
+      fecha: 'FECHA', // Line 47
+      establecimiento: 'ESTABLECIMIENTO', // Line 48
+      localidad: 'LOCALIDAD', // Line 49
+      tarjeta: 'TARJETA', // Line 50
+      conductorAutorizado: 'CONDUCTOR', // Line 51
+      dominio: 'IDENTIFICACION TARJETA', // Line 52
+      remito: 'REMITO', // Line 53
+      producto: 'PRODUCTO', // Line 54
+      litros: 'LITROS UNIDADES', // Line 55
+      importe: 'IMP TOT PVP ESTABLECIMIENTO', // Line 56
+      importeYER: 'IMP TOT YER' // Line 57
+    }
+
+    try {
+      const settings = await prisma.importSettings.findFirst({
+        where: { isActive: true },
+        include: { mappings: true }
+      })
+      
+      if (settings && settings.mappings) {
+        mappings = settings.mappings.reduce((acc: any, mapping: any) => {
+          acc[mapping.internalField] = mapping.rawColumnName
+          return acc
+        }, {} as typeof mappings)
+        console.log('Loaded mappings from database:', mappings)
+      } else {
+        console.log('No settings found, using default mappings')
+      }
+
+      // Update importe column if alternative is selected
+      if (useAlternativeImporte) {
+        mappings.importe = mappings.importeYER
+        console.log('Using alternative importe column:', mappings.importe)
+      }
+    } catch (error) {
+      console.warn('Could not load import settings, using defaults:', error)
+      // Silently fall back to defaults - don't crash the import
+    }
+
+    // Create column index map
+    const headers = data[0] as string[]
+    console.log('=== EXCEL IMPORT DEBUG LOGS ===')
+    console.log('1. RAW HEADERS FROM EXCEL:', headers)
+    console.log('2. MAPPINGS BEING USED:', mappings)
+    
+    const columnIndexMap: Record<string, number> = {}
+    
+    Object.entries(mappings).forEach(([field, columnName]) => {
+      const index = headers.findIndex(header => 
+        header && header.toString().trim().toUpperCase() === columnName.toUpperCase()
+      )
+      if (index !== -1) {
+        columnIndexMap[field] = index
+        console.log(`3. FOUND COLUMN: ${field} -> ${columnName} at index ${index}`)
+      } else {
+        console.log(`3. MISSING COLUMN: ${field} -> ${columnName}`)
+      }
+    })
+    
+    console.log('4. COLUMN INDEX MAP RESULT:', columnIndexMap)
+
+    // Validate required columns - ONLY tarjeta and importe are strictly required
+    const requiredFields = ['tarjeta', 'importe']
+    const missingFields = requiredFields.filter(field => columnIndexMap[field] === undefined)
+    
+    console.log('5. REQUIRED FIELDS CHECK:', { requiredFields, missingFields })
+    
+    if (missingFields.length > 0) {
+      const missingFieldDetails = missingFields.map(field => {
+        const expectedColumn = mappings[field as keyof typeof mappings]
+        return `Campo "${field}" - Columna esperada: "${expectedColumn}"`
+      })
+      
+      console.log('6. VALIDATION FAILED - MISSING FIELDS:', missingFieldDetails)
+      
+      return NextResponse.json(
+        { 
+          error: `Columnas requeridas no encontradas: ${missingFieldDetails.join(', ')}`,
+          availableColumns: headers,
+          missingColumns: missingFields.map(field => ({
+            field,
+            expectedColumn: mappings[field as keyof typeof mappings]
+          }))
+        },
+        { status: 400 }
+      )
+    }
+    
+    console.log('7. VALIDATION PASSED - ALL REQUIRED FIELDS FOUND')
+
+    // Get all cards for lookup
+    const cards = await prisma.card.findMany({
+      include: { area: true, subArea: true }
+    })
+    const cardMap = new Map(cards.map(card => [card.cardNumber, card]))
+
+    // Process data rows
+    const results: any = {
+      success: true,
+      totalRows: data.length - 1,
+      importedRows: 0,
+      pendingRows: 0,  
+      duplicateRows: 0,  
+      failedRows: 0,
+      errors: [],
+      warnings: [],
+      importedData: []
+    }
+
+    // Ensure we have a valid user
+    let user = await prisma.user.findFirst()
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email: 'default@example.com',
+          name: 'Default User'
+        }
+      })
+    }
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i] as any[]
+      
+      try {
+        // Extract data using column mappings - HANDLE OPTIONAL FIELDS GRACEFULLY
+        const rowData: any = {}
+        Object.entries(columnIndexMap).forEach(([field, colIndex]) => {
+          const value = row[colIndex]
+          if (field === 'fecha') {
+            // Use the comprehensive date parsing function
+            const parseExcelDate = (value: any): Date => {
+              if (!value) return new Date()
+
+              // Excel numeric serial (e.g. 45336.21)
+              if (typeof value === 'number') {
+                const excelEpoch = new Date(1899, 11, 30)
+                const days = Math.floor(value)
+                const d = new Date(excelEpoch.getTime() + days * 86400000)
+                return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+              }
+
+              // Already a Date object
+              if (value instanceof Date) {
+                return new Date(value.getFullYear(), value.getMonth(), value.getDate())
+              }
+
+              // String in DD/MM/YYYY format (with or without time)
+              const str = String(value).trim()
+              const match = str.match(/^(\d{2})\/(\d{2})\/(\d{4})/)
+              if (match) {
+                return new Date(+match[3], +match[2] - 1, +match[1])
+              }
+
+              return new Date()
+            }
+
+            rowData[field] = parseExcelDate(value)
+          } else if (field === 'litros' || field === 'importe') {
+            rowData[field] = value ? parseFloat(value.toString().replace(',', '.')) : 0
+          } else {
+            // For optional fields, store empty string if not found
+            rowData[field] = value ? value.toString().trim() : ''
+          }
+        })
+
+        // Check for duplicate using remito field
+        if (rowData.remito) {
+          const existingLog = await prisma.fuelLog.findFirst({
+            where: { remito: rowData.remito }
+          })
+          
+          if (existingLog) {
+            results.duplicateRows++
+            results.warnings.push(`Fila ${i + 1}: Remito "${rowData.remito}" ya existe en la base de datos`)
+            continue
+          }
+        }
+
+        // Validate only strictly required fields: tarjeta and importe
+        if (!rowData.tarjeta || !rowData.importe) {
+          results.failedRows++
+          results.errors.push(`Fila ${i + 1}: Faltan datos requeridos (Tarjeta o Importe)`)
+          continue
+        }
+
+        // Find card
+        const card = cardMap.get(rowData.tarjeta)
+        if (!card) {
+          // Save as PENDING instead of failing
+          results.pendingRows++
+          results.warnings.push(`Fila ${i + 1}: Tarjeta "${rowData.tarjeta}" no encontrada - guardada como PENDIENTE`)
+          
+          await prisma.fuelLog.create({
+            data: {
+              date: rowData.fecha || new Date(),
+              amount: rowData.importe,
+              pricePerGallon: rowData.litros > 0 ? rowData.importe / rowData.litros : 0,
+              totalCost: rowData.importe,
+              gallons: rowData.litros || 0,
+              location: rowData.establecimiento || null,
+              description: rowData.producto || null,
+              remito: rowData.remito || null,
+              status: 'PENDING',  // Set status to PENDING
+              mainAreaId: null,  // Will be resolved later
+              subAreaId: null,   // Will be resolved later
+              cardNumber: rowData.tarjeta,  // Store card number for pending rows
+              userId: user.id
+              // cardId: null // Don't set cardId for unknown cards
+            }
+          })
+          continue
+        }
+
+        // Create fuel log with all available data
+        const fuelLog = await prisma.fuelLog.create({
+          data: {
+            date: rowData.fecha || new Date(),
+            amount: rowData.importe,
+            pricePerGallon: rowData.litros > 0 ? rowData.importe / rowData.litros : 0,
+            totalCost: rowData.importe,
+            gallons: rowData.litros || 0,
+            location: rowData.establecimiento || null,
+            description: rowData.producto || null,
+            remito: rowData.remito || null,
+            status: 'IMPORTED',  // Set status to IMPORTED
+            mainAreaId: card.areaId,  // Resolve area immediately
+            subAreaId: card.subAreaId || null,  // Resolve subarea if available
+            userId: user.id,
+            cardId: card.id
+          }
+        })
+
+        results.importedRows++
+        results.importedData.push({
+          ...fuelLog,
+          card: { ...card, area: card.area, subArea: card.subArea }
+        })
+      } catch (error) {
+        results.failedRows++
+        results.errors.push(`Fila ${i + 1}: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+      }
+    }
+
+    results.success = results.failedRows === 0
+
+    return NextResponse.json(results)
+  } catch (error) {
+    console.error('Error processing Excel file:', error)
+    return NextResponse.json(
+      { error: 'Failed to process Excel file' },
+      { status: 500 }
+    )
+  }
+}

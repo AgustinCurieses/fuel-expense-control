@@ -1,0 +1,198 @@
+/* Print Styles for A4 Horizontal Layout */
+@media print {
+  /* Hide sidebar and navigation */
+  .sidebar,
+  .no-print,
+  button,
+  .btn,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  .pagination,
+  .filters,
+  .actions {
+    display: none !important;
+  }
+
+  /* A4 Horizontal layout */
+  @page {
+    size: A4 landscape;
+    margin: 1cm;
+  }
+
+  /* Main content takes full width */
+  body {
+    margin: 0;
+    padding: 0;
+    font-size: 10pt;
+    line-height: 1.2;
+  }
+
+  .main-content {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Table styling for print */
+  .print-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+  }
+
+  .print-table th {
+    background-color: #f8f9fa !important;
+    border: 1px solid #dee2e6 !important;
+    padding: 8px !important;
+    text-align: left !important;
+    font-weight: bold !important;
+    font-size: 9pt !important;
+  }
+
+  .print-table td {
+    border: 1px solid #dee2e6 !important;
+    padding: 6px !important;
+    font-size: 9pt !important;
+    vertical-align: top !important;
+  }
+
+  /* Medium-weight grid */
+  .print-grid {
+    border: 1px solid #495057 !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+  }
+
+  .print-grid th,
+  .print-grid td {
+    border: 1px solid #adb5bd !important;
+  }
+
+  /* Header and footer */
+  .print-header {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 14pt;
+    font-weight: bold;
+  }
+
+  .print-subheader {
+    text-align: center;
+    margin-bottom: 15px;
+    font-size: 12pt;
+    color: #6c757d;
+  }
+
+  /* Total rows styling */
+  .print-total-row {
+    font-weight: bold !important;
+    background-color: #e9ecef !important;
+    border-top: 2px solid #495057 !important;
+  }
+
+  .print-total-row td {
+    font-weight: bold !important;
+    background-color: #e9ecef !important;
+  }
+
+  /* Currency formatting */
+  .print-currency {
+    text-align: right !important;
+    font-family: 'Courier New', monospace !important;
+  }
+
+  /* Page breaks */
+  .print-page-break {
+    page-break-before: always;
+  }
+
+  .print-avoid-break {
+    page-break-inside: avoid;
+  }
+
+  /* Report summary */
+  .print-summary {
+    margin: 20px 0;
+    padding: 15px;
+    border: 2px solid #495057;
+    background-color: #f8f9fa;
+  }
+
+  .print-summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 5px 0;
+    font-size: 10pt;
+  }
+
+  .print-summary-label {
+    font-weight: bold;
+  }
+
+  .print-summary-value {
+    font-weight: bold;
+    color: #495057;
+  }
+
+  /* Ensure tables don't get cut off */
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  td {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  /* Remove shadows and transitions */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    transition: none !important;
+  }
+
+  /* Ensure colors print well */
+  .text-primary {
+    color: #000 !important;
+  }
+
+  .text-secondary {
+    color: #666 !important;
+  }
+
+  .bg-primary {
+    background-color: #f8f9fa !important;
+  }
+
+  /* Logo and branding */
+  .print-logo {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  .print-logo h1 {
+    font-size: 18pt;
+    font-weight: bold;
+    margin: 0;
+  }
+
+  .print-logo p {
+    font-size: 10pt;
+    color: #6c757d;
+    margin: 5px 0 0 0;
+  }
+}
