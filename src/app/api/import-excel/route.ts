@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
       dominio: 'IDENTIFICACION TARJETA', // Line 52
       remito: 'REMITO', // Line 53
       producto: 'PRODUCTO', // Line 54
+      factura: 'FACTURA', // Line 30
       litros: 'LITROS UNIDADES', // Line 55
       importe: 'IMP TOT PVP ESTABLECIMIENTO', // Line 56
       importeYER: 'IMP TOT YER' // Line 57
@@ -246,9 +247,10 @@ export async function POST(request: NextRequest) {
           results.pendingRows++
           results.warnings.push(`Fila ${i + 1}: Tarjeta "${rowData.tarjeta}" no encontrada - guardada como PENDIENTE`)
           
-          await prisma.fuelLog.create({
+          const fuelLogDate = rowData.fecha || new Date()
+          const fuelLog = await prisma.fuelLog.create({
             data: {
-              date: rowData.fecha || new Date(),
+              date: fuelLogDate,
               amount: rowData.importe,
               pricePerGallon: rowData.litros > 0 ? rowData.importe / rowData.litros : 0,
               totalCost: rowData.importe,
@@ -256,6 +258,10 @@ export async function POST(request: NextRequest) {
               location: rowData.establecimiento || null,
               description: rowData.producto || null,
               remito: rowData.remito || null,
+              conductor: rowData.conductorAutorizado || null,
+              localidad: rowData.localidad || null,
+              dominio: rowData.dominio || null,
+              factura: rowData.factura || null,
               status: 'PENDING',  // Set status to PENDING
               mainAreaId: null,  // Will be resolved later
               subAreaId: null,   // Will be resolved later
@@ -285,6 +291,10 @@ export async function POST(request: NextRequest) {
             location: rowData.establecimiento || null,
             description: rowData.producto || null,
             remito: rowData.remito || null,
+            conductor: rowData.conductorAutorizado || null,
+            localidad: rowData.localidad || null,
+            dominio: rowData.dominio || null,
+            factura: rowData.factura || null,
             status: 'IMPORTED',  // Set status to IMPORTED
             mainAreaId: mainAreaId,  // Resolve area from history
             subAreaId: subAreaId,  // Resolve subarea from history

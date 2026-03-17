@@ -87,6 +87,10 @@ model FuelLog {
   location    String?
   description String?
   remito      String?
+  conductor   String?
+  localidad   String?
+  dominio     String?
+  factura     String?
   status      String   @default("IMPORTED")
   mainAreaId  String?
   subAreaId   String?

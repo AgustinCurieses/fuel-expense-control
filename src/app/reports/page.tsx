@@ -18,6 +18,9 @@ export default function ReportsPage() {
   const [selectedArea, setSelectedArea] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
+  const [facturaFilter, setFacturaFilter] = useState<string>('')
+  const [filterMode, setFilterMode] = useState<'period' | 'factura'>('period')
+  const [availableFacturas, setAvailableFacturas] = useState<any[]>([])
   const [isExporting, setIsExporting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -25,7 +28,7 @@ export default function ReportsPage() {
   const [useAlternativeImporte, setUseAlternativeImporte] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Column mappings state - EXACT 11 FIELDS WITH SPANISH LABELS
+  // Column mappings state - EXACT 12 FIELDS WITH SPANISH LABELS
   const [columnMappings, setColumnMappings] = useState({
     fecha: 'FECHA', // Line 30
     tarjeta: 'TARJETA', // Line 31
@@ -35,6 +38,7 @@ export default function ReportsPage() {
     localidad: 'LOCALIDAD', // Line 35
     remito: 'REMITO', // Line 36
     producto: 'PRODUCTO', // Line 37
+    factura: 'FACTURA', // Line 30
     litros: 'LITROS UNIDADES', // Line 38
     importe: 'IMP TOT PVP ESTABLECIMIENTO', // Line 39
     importeYER: 'IMP TOT YER' // Line 40
@@ -46,10 +50,11 @@ export default function ReportsPage() {
 
   const loadData = async () => {
     try {
-      const [logsResponse, areasResponse, settingsResponse] = await Promise.all([
+      const [logsResponse, areasResponse, settingsResponse, facturasResponse] = await Promise.all([
         fetch('/api/fuel-logs'),
         fetch('/api/areas'),
-        fetch('/api/import-settings')
+        fetch('/api/import-settings'),
+        fetch('/api/facturas')
       ])
       
       if (logsResponse.ok) {
@@ -78,6 +83,11 @@ export default function ReportsPage() {
             ...savedMappings
           }))
         }
+      }
+      
+      if (facturasResponse.ok) {
+        const facturasData = await facturasResponse.json()
+        setAvailableFacturas(facturasData)
       }
     } catch (error) {
       console.error('Error loading data:', error)
@@ -174,19 +184,50 @@ export default function ReportsPage() {
     }
   }
 
+  const handleFilterModeChange = (mode: 'period' | 'factura') => {
+    setFilterMode(mode)
+    // Clear inputs when switching modes
+    if (mode === 'period') {
+      setFacturaFilter('')
+    } else {
+      setStartDate('')
+      setEndDate('')
+    }
+  }
+
   const handleGenerateReport = async () => {
-    if (!startDate || !endDate) {
-      alert('Please select both start and end dates')
+    if (filterMode === 'period' && (!startDate || !endDate)) {
+      alert('Por favor seleccione ambas fechas de inicio y fin')
+      return
+    }
+
+    if (filterMode === 'factura' && !facturaFilter) {
+      alert('Por favor ingrese el número de factura')
       return
     }
 
     setIsExporting(true)
 
     try {
+      const requestBody: any = {}
+      
+      // Add areaId if selected
+      if (selectedArea) {
+        requestBody.areaId = selectedArea
+      }
+      
+      // Add filters based on mode
+      if (filterMode === 'period') {
+        requestBody.startDate = startDate
+        requestBody.endDate = endDate
+      } else {
+        requestBody.factura = facturaFilter
+      }
+
       const response = await fetch('/api/generate-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ startDate, endDate })
+        body: JSON.stringify(requestBody)
       })
 
       if (!response.ok) {
@@ -352,7 +393,36 @@ export default function ReportsPage() {
             <h2 className="text-lg font-semibold text-gray-900">Filtros</h2>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Filter Mode Selection */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-3">Tipo de Filtro</label>
+            <div className="space-y-2">
+              <label className="flex items-center space-x-3">
+                <input
+                  type="radio"
+                  name="filterMode"
+                  value="period"
+                  checked={filterMode === 'period'}
+                  onChange={(e) => handleFilterModeChange(e.target.value as 'period' | 'factura')}
+                  className="text-blue-600 border-gray-300"
+                />
+                <span className="text-sm">Filtrar por Período</span>
+              </label>
+              <label className="flex items-center space-x-3">
+                <input
+                  type="radio"
+                  name="filterMode"
+                  value="factura"
+                  checked={filterMode === 'factura'}
+                  onChange={(e) => handleFilterModeChange(e.target.value as 'period' | 'factura')}
+                  className="text-blue-600 border-gray-300"
+                />
+                <span className="text-sm">Filtrar por Número de Factura</span>
+              </label>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Select
               label="Área"
               value={selectedArea}
@@ -366,19 +436,45 @@ export default function ReportsPage() {
               ]}
             />
             
-            <Input
-              label="Fecha de Inicio"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-            
-            <Input
-              label="Fecha de Fin"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
+            {filterMode === 'period' ? (
+              <>
+                <Input
+                  label="Fecha de Inicio"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+                
+                <Input
+                  label="Fecha de Fin"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+                
+                <div></div> {/* Empty placeholder for grid alignment */}
+              </>
+            ) : (
+              <>
+                <div></div> {/* Empty placeholder for grid alignment */}
+                <div></div> {/* Empty placeholder for grid alignment */}
+                <Select
+                  label="Número de Factura"
+                  value={facturaFilter}
+                  onChange={(e) => setFacturaFilter(e.target.value)}
+                  options={
+                    availableFacturas.length > 0
+                      ? availableFacturas.map(factura => ({
+                          value: factura.factura,
+                          label: `${factura.factura} - ${factura.label}`
+                        }))
+                      : [{ value: '', label: 'No hay facturas disponibles', disabled: true }]
+                  }
+                  disabled={availableFacturas.length === 0}
+                />
+                <div></div> {/* Empty placeholder for grid alignment */}
+              </>
+            )}
           </div>
         </div>
 
@@ -632,7 +728,18 @@ export default function ReportsPage() {
                 />
               </div>
               
-              {/* Producto - Line 601 */}
+              {/* Factura - Line 601 */}
+              <div className="grid grid-cols-3 gap-3 items-center">
+                <label className="text-sm font-medium text-gray-700">Factura</label>
+                <Input 
+                  value={columnMappings.factura}
+                  onChange={(e) => setColumnMappings(prev => ({ ...prev, factura: e.target.value }))}
+                  placeholder="Nombre de columna en Excel"
+                  className="col-span-2"
+                />
+              </div>
+              
+              {/* Producto - Line 609 */}
               <div className="grid grid-cols-3 gap-3 items-center">
                 <label className="text-sm font-medium text-gray-700">Producto</label>
                 <Input 
