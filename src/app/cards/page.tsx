@@ -21,8 +21,13 @@ export default function CardsPage() {
   const [pendingCards, setPendingCards] = useState<PendingCard[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
+  const [isReassignModalOpen, setIsReassignModalOpen] = useState(false)
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
   const [editingCard, setEditingCard] = useState<Card | null>(null)
   const [assigningCard, setAssigningCard] = useState<PendingCard | null>(null)
+  const [reassigningCard, setReassigningCard] = useState<Card | null>(null)
+  const [historyCard, setHistoryCard] = useState<Card | null>(null)
+  const [cardHistory, setCardHistory] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [formData, setFormData] = useState<CardFormData>({
     cardNumber: '',
@@ -32,6 +37,10 @@ export default function CardsPage() {
   })
   const [assignFormData, setAssignFormData] = useState({
     identification: '',
+    mainAreaId: '',
+    subAreaId: ''
+  })
+  const [reassignFormData, setReassignFormData] = useState({
     mainAreaId: '',
     subAreaId: ''
   })
@@ -193,6 +202,64 @@ export default function CardsPage() {
     setIsAssignModalOpen(false)
   }
 
+  const handleReassignCard = (card: Card) => {
+    setReassigningCard(card)
+    setReassignFormData({
+      mainAreaId: card.areaId,
+      subAreaId: card.subAreaId || ''
+    })
+    setIsReassignModalOpen(true)
+  }
+
+  const handleReassignSubmit = async () => {
+    if (!reassigningCard) return
+
+    try {
+      const response = await fetch(`/api/cards/${reassigningCard.id}/reassign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          mainAreaId: reassignFormData.mainAreaId,
+          subAreaId: reassignFormData.subAreaId || null
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to reassign card')
+      }
+
+      await loadData()
+      setIsReassignModalOpen(false)
+      setReassigningCard(null)
+      alert('Área reasignada correctamente.')
+    } catch (err) {
+      console.error('Error reassigning card:', err)
+      alert('Error al reasignar área')
+    }
+  }
+
+  const resetReassignForm = () => {
+    setReassignFormData({ mainAreaId: '', subAreaId: '' })
+    setReassigningCard(null)
+    setIsReassignModalOpen(false)
+  }
+
+  const handleViewHistory = async (card: Card) => {
+    setHistoryCard(card)
+    try {
+      const response = await fetch(`/api/cards/${card.id}/history`)
+      if (response.ok) {
+        const history = await response.json()
+        setCardHistory(history)
+      }
+    } catch (err) {
+      console.error('Error loading card history:', err)
+    }
+    setIsHistoryModalOpen(true)
+  }
+
   const getAreaName = (areaId: string) => {
     const area = mainAreas.find(a => a.id === areaId)
     return area?.name || 'Desconocido'
@@ -328,6 +395,18 @@ export default function CardsPage() {
                         className="text-blue-600 hover:text-blue-900 mr-3"
                       >
                         Edit
+                      </button>
+                      <button
+                        onClick={() => handleReassignCard(card)}
+                        className="text-orange-600 hover:text-orange-900 mr-3"
+                      >
+                        Reasignar Área
+                      </button>
+                      <button
+                        onClick={() => handleViewHistory(card)}
+                        className="text-purple-600 hover:text-purple-900 mr-3"
+                      >
+                        Ver historial
                       </button>
                       <button
                         onClick={() => handleDelete(card)}
@@ -518,6 +597,142 @@ export default function CardsPage() {
               </Button>
             </div>
           </form>
+        </Modal>
+
+        {/* Reassign Modal */}
+        <Modal
+          isOpen={isReassignModalOpen}
+          onClose={resetReassignForm}
+          title="Reasignar Área"
+          size="md"
+        >
+          <form onSubmit={handleReassignSubmit} className="space-y-4">
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Número de Tarjeta
+              </label>
+              <div className="text-sm font-semibold text-gray-900">
+                {reassigningCard?.cardNumber}
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Identificación Actual
+              </label>
+              <div className="text-sm font-semibold text-gray-900">
+                {reassigningCard?.identification || '-'}
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Área Actual
+              </label>
+              <div className="text-sm font-semibold text-gray-900">
+                {reassigningCard ? `${getAreaName(reassigningCard.areaId)} - ${reassigningCard.subAreaId ? getSubAreaName(reassigningCard.subAreaId) : 'Sin subárea'}` : '-'}
+              </div>
+            </div>
+
+            <SearchableSelect
+              label="Nueva Área Principal"
+              value={reassignFormData.mainAreaId}
+              onChange={(value) => setReassignFormData({ ...reassignFormData, mainAreaId: value, subAreaId: '' })}
+              options={mainAreaOptions}
+              placeholder="Buscar área principal..."
+            />
+
+            {reassignFormData.mainAreaId && (
+              <SearchableSelect
+                label="Nueva Sub-área"
+                value={reassignFormData.subAreaId}
+                onChange={(value) => setReassignFormData({ ...reassignFormData, subAreaId: value })}
+                options={getSubAreaOptions(reassignFormData.mainAreaId)}
+                placeholder="Buscar subárea..."
+              />
+            )}
+
+            <div className="flex justify-end space-x-3 pt-4">
+              <Button type="button" variant="outline" onClick={resetReassignForm}>
+                <X className="w-4 h-4 mr-2" />
+                Cancelar
+              </Button>
+              <Button type="submit">
+                <Save className="w-4 h-4 mr-2" />
+                Confirmar Reasignación
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* History Modal */}
+        <Modal
+          isOpen={isHistoryModalOpen}
+          onClose={() => setIsHistoryModalOpen(false)}
+          title="Historial de Áreas"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tarjeta
+              </label>
+              <div className="text-sm font-semibold text-gray-900">
+                {historyCard?.cardNumber} - {historyCard?.identification || '-'}
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Área Principal
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Sub-área
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Desde
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Hasta
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {cardHistory.map((record) => (
+                    <tr key={record.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {record.mainArea?.name || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {record.subArea?.name || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatDate(record.validFrom)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {record.validTo ? formatDate(record.validTo) : 'Actual'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {cardHistory.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  No hay historial disponible
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-4">
+              <Button type="button" variant="outline" onClick={() => setIsHistoryModalOpen(false)}>
+                <X className="w-4 h-4 mr-2" />
+                Cerrar
+              </Button>
+            </div>
+          </div>
         </Modal>
       </div>
     </MainLayout>

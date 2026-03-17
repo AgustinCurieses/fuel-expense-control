@@ -31,9 +31,10 @@ model MainArea {
   updatedAt DateTime @updatedAt
 
   // Relations
-  subAreas  SubArea[]
-  cards     Card[]
-  fuelLogs  FuelLog[]
+  subAreas     SubArea[]
+  cards        Card[]
+  fuelLogs     FuelLog[]
+  areaHistory  CardAreaHistory[]
 
   @@map("main_areas")
 }
@@ -46,9 +47,10 @@ model SubArea {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  parentArea MainArea @relation(fields: [parentAreaId], references: [id], onDelete: Cascade)
-  cards      Card[]
-  fuelLogs   FuelLog[]
+  parentArea  MainArea @relation(fields: [parentAreaId], references: [id], onDelete: Cascade)
+  cards       Card[]
+  fuelLogs    FuelLog[]
+  areaHistory CardAreaHistory[]
 
   @@unique([name, parentAreaId])
   @@map("sub_areas")
@@ -69,6 +71,7 @@ model Card {
   subArea       SubArea?  @relation(fields: [subAreaId], references: [id], onDelete: SetNull)
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   fuelLogs     FuelLog[]
+  areaHistory  CardAreaHistory[]
 
   @@map("cards")
 }
@@ -128,4 +131,20 @@ model ImportMapping {
   settings      ImportSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
 
   @@map("import_mappings")
+}
+
+model CardAreaHistory {
+  id          String    @id @default(cuid())
+  cardId      String
+  mainAreaId  String
+  subAreaId   String?
+  validFrom   DateTime
+  validTo     DateTime?
+  createdAt   DateTime  @default(now())
+
+  card        Card      @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  mainArea    MainArea  @relation(fields: [mainAreaId], references: [id])
+  subArea     SubArea?  @relation(fields: [subAreaId], references: [id])
+
+  @@map("card_area_history")
 }

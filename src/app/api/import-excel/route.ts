@@ -1,6 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/database'
+import { PrismaClient } from '@prisma/client'
 import * as XLSX from 'xlsx'
+
+const prisma = new PrismaClient()
+
+// Helper function to resolve card area based on history
+async function getCardAreaAtDate(cardId: string, date: Date) {
+  const historyRecord = await prisma.cardAreaHistory.findFirst({
+    where: {
+      cardId: cardId,
+      validFrom: {
+        lte: date
+      },
+      OR: [
+        { validTo: { gte: date } },
+        { validTo: null }
+      ]
+    },
+    orderBy: {
+      validFrom: 'desc'
+    }
+  })
+
+  return historyRecord
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -245,9 +268,16 @@ export async function POST(request: NextRequest) {
         }
 
         // Create fuel log with all available data
+        const fuelLogDate = rowData.fecha || new Date()
+        
+        // Resolve area based on history
+        const areaHistory = await getCardAreaAtDate(card.id, fuelLogDate)
+        const mainAreaId = areaHistory?.mainAreaId || card.areaId
+        const subAreaId = areaHistory?.subAreaId || card.subAreaId
+
         const fuelLog = await prisma.fuelLog.create({
           data: {
-            date: rowData.fecha || new Date(),
+            date: fuelLogDate,
             amount: rowData.importe,
             pricePerGallon: rowData.litros > 0 ? rowData.importe / rowData.litros : 0,
             totalCost: rowData.importe,
@@ -256,8 +286,8 @@ export async function POST(request: NextRequest) {
             description: rowData.producto || null,
             remito: rowData.remito || null,
             status: 'IMPORTED',  // Set status to IMPORTED
-            mainAreaId: card.areaId,  // Resolve area immediately
-            subAreaId: card.subAreaId || null,  // Resolve subarea if available
+            mainAreaId: mainAreaId,  // Resolve area from history
+            subAreaId: subAreaId,  // Resolve subarea from history
             userId: user.id,
             cardId: card.id
           }
