@@ -23,6 +23,15 @@ interface SidebarItem {
   href: string
 }
 
+interface SidebarProps {
+  isOpen: boolean
+  onToggle: () => void
+  currentUser?: {
+    name: string | null
+    email: string | null
+  }
+}
+
 const sidebarItems: SidebarItem[] = [
   {
     id: 'dashboard',
@@ -67,7 +76,7 @@ interface SidebarProps {
   onToggle: () => void
 }
 
-export function Sidebar({ isOpen, onToggle }: SidebarProps) {
+export function Sidebar({ isOpen, onToggle, currentUser }: SidebarProps) {
   const pathname = usePathname()
 
   return (
@@ -136,8 +145,8 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
                 <span className="text-sm font-medium text-gray-600">U</span>
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">User Name</p>
-                <p className="text-xs text-gray-500">user@example.com</p>
+                <p className="text-sm font-medium text-gray-900">{currentUser?.name || 'Cargando...'}</p>
+                <p className="text-xs text-gray-500">{currentUser?.email || 'cargando@ejemplo.com'}</p>
               </div>
             </div>
           </div>

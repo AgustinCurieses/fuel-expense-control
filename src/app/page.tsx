@@ -1,11 +1,73 @@
+'use client'
+
+import { useState, useEffect } from 'react'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { TrendingUp, MapPin, CreditCard, DollarSign } from 'lucide-react'
 
+interface DashboardData {
+  totalSpending: string
+  mostActiveArea: string
+  mostActiveAreaCount: number
+  pendingCards: number
+  lastImportDate: string | null
+  recentActivity: Array<{
+    type: 'import' | 'assignment'
+    title: string
+    description: string
+    date: string
+  }>
+}
+
 export default function HomePage() {
-  // Mock data - replace with actual API calls
-  const currentMonthSpending = 1247.89
-  const mostActiveArea = 'North Region'
-  const pendingCards = 3
+  const [dashboardData, setDashboardData] = useState<DashboardData>({
+    totalSpending: '$ 0,00',
+    mostActiveArea: 'Cargando...',
+    mostActiveAreaCount: 0,
+    pendingCards: 0,
+    lastImportDate: null,
+    recentActivity: []
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const response = await fetch('/api/dashboard')
+        if (response.ok) {
+          const data = await response.json()
+          setDashboardData(data)
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [])
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'import':
+        return <TrendingUp className="w-4 h-4 text-blue-600" />
+      case 'assignment':
+        return <CreditCard className="w-4 h-4 text-green-600" />
+      default:
+        return <MapPin className="w-4 h-4 text-purple-600" />
+    }
+  }
+
+  const getActivityIconBg = (type: string) => {
+    switch (type) {
+      case 'import':
+        return 'bg-blue-100'
+      case 'assignment':
+        return 'bg-green-100'
+      default:
+        return 'bg-purple-100'
+    }
+  }
 
   return (
     <MainLayout>
@@ -33,14 +95,8 @@ export default function HomePage() {
               </span>
             </div>
             <div className="space-y-1">
-              <p className="text-3xl font-bold">${currentMonthSpending.toFixed(2)}</p>
+              <p className="text-3xl font-bold">{loading ? '$ 0,00' : dashboardData.totalSpending}</p>
               <p className="text-blue-100 text-sm">Gasto Total</p>
-            </div>
-            <div className="mt-4 pt-4 border-t border-blue-500 border-opacity-30">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-blue-100">vs mes anterior</span>
-                <span className="text-green-300">+12.5%</span>
-              </div>
             </div>
           </div>
 
@@ -55,13 +111,13 @@ export default function HomePage() {
               </span>
             </div>
             <div className="space-y-1">
-              <p className="text-3xl font-bold">{mostActiveArea}</p>
+              <p className="text-3xl font-bold">{loading ? 'Cargando...' : dashboardData.mostActiveArea}</p>
               <p className="text-green-100 text-sm">Área Más Activa</p>
             </div>
             <div className="mt-4 pt-4 border-t border-green-500 border-opacity-30">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-green-100">Transacciones</span>
-                <span className="text-white">47</span>
+                <span className="text-white">{loading ? '0' : dashboardData.mostActiveAreaCount}</span>
               </div>
             </div>
           </div>
@@ -77,15 +133,17 @@ export default function HomePage() {
               </span>
             </div>
             <div className="space-y-1">
-              <p className="text-3xl font-bold">{pendingCards}</p>
+              <p className="text-3xl font-bold">{loading ? '0' : dashboardData.pendingCards}</p>
               <p className="text-orange-100 text-sm">Tarjetas por Asignar</p>
             </div>
-            <div className="mt-4 pt-4 border-t border-orange-500 border-opacity-30">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-orange-100">De importaciones</span>
-                <span className="text-white">Esta semana</span>
+            {dashboardData.lastImportDate && (
+              <div className="mt-4 pt-4 border-t border-orange-500 border-opacity-30">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-orange-100">Última imp</span>
+                  <span className="text-white">{dashboardData.lastImportDate}</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -138,35 +196,27 @@ export default function HomePage() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Actividad Reciente</h2>
           <div className="space-y-4">
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <div className="p-2 bg-blue-100 rounded-full">
-                <TrendingUp className="w-4 h-4 text-blue-600" />
+            {loading ? (
+              <div className="text-center text-gray-500 py-8">
+                Cargando actividad reciente...
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">Archivo Excel importado</p>
-                <p className="text-xs text-gray-500">23 registros procesados hace 2 horas</p>
+            ) : dashboardData.recentActivity.length > 0 ? (
+              dashboardData.recentActivity.map((activity, index) => (
+                <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                  <div className={`p-2 rounded-full ${getActivityIconBg(activity.type)}`}>
+                    {getActivityIcon(activity.type)}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">{activity.title}</p>
+                    <p className="text-xs text-gray-500">{activity.description}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-gray-500 py-8">
+                No hay actividad reciente
               </div>
-            </div>
-            
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <div className="p-2 bg-green-100 rounded-full">
-                <CreditCard className="w-4 h-4 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">Nueva tarjeta asignada</p>
-                <p className="text-xs text-gray-500">Tarjeta 4567 asignada a Región Norte hace 5 horas</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <div className="p-2 bg-purple-100 rounded-full">
-                <MapPin className="w-4 h-4 text-purple-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">Reporte generado</p>
-                <p className="text-xs text-gray-500">Reporte mensual para Región Sur hace 1 día</p>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

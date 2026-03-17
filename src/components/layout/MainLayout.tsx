@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Menu, LogOut } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { useAuth } from '@/contexts/AuthContext'
@@ -13,11 +13,31 @@ interface MainLayoutProps {
 export function MainLayout({ children }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { user, logout } = useAuth()
+  const [currentUser, setCurrentUser] = useState<{ name: string | null; email: string | null }>({ name: null, email: null })
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await fetch('/api/auth/me')
+        if (response.ok) {
+          const userData = await response.json()
+          setCurrentUser({
+            name: userData.name,
+            email: userData.email
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching current user:', error)
+      }
+    }
+
+    fetchCurrentUser()
+  }, [])
 
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50 flex">
-        <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+        <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} currentUser={currentUser} />
         
         {/* Main Content Area */}
         <div className="flex-1 lg:ml-0">
@@ -40,8 +60,8 @@ export function MainLayout({ children }: MainLayoutProps) {
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                    <p className="text-xs text-gray-500">{user?.email}</p>
+                    <p className="text-sm font-medium text-gray-900">{currentUser?.name || 'Cargando...'}</p>
+                    <p className="text-xs text-gray-500">{currentUser?.email || 'cargando@ejemplo.com'}</p>
                   </div>
                   <button
                     onClick={logout}
