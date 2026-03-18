@@ -19,9 +19,13 @@ const mediumBorder = {
   right: { style: 'medium' as const }
 }
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const { startDate, endDate, areaId, factura } = await request.json()
+    const { searchParams } = new URL(request.url)
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
+    const areaId = searchParams.get('areaId')
+    const factura = searchParams.get('factura')
 
     // Validation: either factura OR both dates are required
     if (!factura && (!startDate || !endDate)) {
@@ -121,7 +125,19 @@ export async function POST(request: NextRequest) {
     // Row 1 - Title (merged A1:H1)
     worksheet.mergeCells('A1:H1')
     const titleCell = worksheet.getCell('A1')
-    titleCell.value = `Secretaria: ${areaName} - Periodo ${startDate} Al ${endDate}`
+    // Format dates as DD/MM/YYYY without timezone conversion
+    const formatDateTitle = (dateStr: string): string => {
+      const [year, month, day] = dateStr.split('-')
+      return `${day}/${month}/${year}` 
+    }
+    
+    const formattedStartDate = startDate ? formatDateTitle(startDate) : ''
+    const formattedEndDate = endDate ? formatDateTitle(endDate) : ''
+    
+    const title = factura 
+      ? `${areaName} - Factura ${factura}`
+      : `${areaName} - Periodo ${formattedStartDate} Al ${formattedEndDate}`
+    titleCell.value = title
     titleCell.font = { name: 'Calibri', size: 11, bold: true }
     titleCell.alignment = { horizontal: 'center' }
     titleCell.border = mediumBorder
@@ -149,7 +165,6 @@ export async function POST(request: NextRequest) {
 
     // Data rows (3 to N)
     let currentRow = 3
-    let totalImporte = 0
 
     for (const log of fuelLogs) {
       const row = worksheet.getRow(currentRow)
@@ -199,8 +214,6 @@ export async function POST(request: NextRequest) {
       importeCell.alignment = { horizontal: 'right' }
       importeCell.border = mediumBorder
 
-      totalImporte += log.amount
-
       // Column H - Fecha (formatted as DD/MM/YYYY, centered)
       const fechaCell = row.getCell(8)
       const date = new Date(log.date)
@@ -233,29 +246,22 @@ export async function POST(request: NextRequest) {
       currentRow++
     }
 
-    // Last row - Total
-    const totalRow = worksheet.getRow(currentRow)
-    
-    // Merge cells A:F
-    worksheet.mergeCells(`A${currentRow}:F${currentRow}`)
-    const totalLabelCell = totalRow.getCell(1)
-    totalLabelCell.value = 'Total : '
-    totalLabelCell.font = { name: 'Calibri', size: 11 }
-    totalLabelCell.alignment = { horizontal: 'right' }
-    totalLabelCell.border = mediumBorder
+    const totalRowNumber = worksheet.rowCount + 1
+const totalImporte = fuelLogs.reduce((sum, log) => sum + (log.amount || 0), 0)
 
-    // Column G - Total sum (formatted as Argentine currency)
-    const totalValueCell = totalRow.getCell(7)
-    totalValueCell.value = formatARS(totalImporte)
-    totalValueCell.font = { name: 'Calibri', size: 11 }
-    totalValueCell.alignment = { horizontal: 'right' }
-    totalValueCell.border = mediumBorder
+worksheet.mergeCells(`A${totalRowNumber}:F${totalRowNumber}`)
 
-    // Clear columns H, I, J, K in total row
-    totalRow.getCell(8).value = null
-    totalRow.getCell(9).value = null
-    totalRow.getCell(10).value = null
-    totalRow.getCell(11).value = null
+const totalLabelCell = worksheet.getCell(`A${totalRowNumber}`)
+totalLabelCell.value = 'Total : '
+totalLabelCell.alignment = { horizontal: 'right' }
+totalLabelCell.font = { name: 'Calibri', size: 11 }
+totalLabelCell.border = { top: { style: 'medium' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
+
+const totalValueCell = worksheet.getCell(`G${totalRowNumber}`)
+totalValueCell.value = formatARS(totalImporte)
+totalValueCell.alignment = { horizontal: 'right' }
+totalValueCell.font = { name: 'Calibri', size: 11 }
+totalValueCell.border = { top: { style: 'medium' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
 
     // Generate buffer
     const buffer = await workbook.xlsx.writeBuffer()
