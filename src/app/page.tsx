@@ -16,6 +16,20 @@ interface DashboardData {
     description: string
     date: string
   }>
+  fuelTypeAlerts: Array<{
+    cardNumber: string
+    dominio: string
+    subArea: string
+    mainArea: string
+    primaryGroup: 'nafta' | 'gasoil'
+    suspiciousLoads: Array<{
+      date: string
+      product: string
+      liters: number
+      amount: number
+      remito: string
+    }>
+  }>
 }
 
 export default function HomePage() {
@@ -25,17 +39,27 @@ export default function HomePage() {
     mostActiveAreaCount: 0,
     pendingCards: 0,
     lastImportDate: null,
-    recentActivity: []
+    recentActivity: [],
+    fuelTypeAlerts: []
   })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const response = await fetch('/api/dashboard')
-        if (response.ok) {
-          const data = await response.json()
-          setDashboardData(data)
+        const [dashboardResponse, alertsResponse] = await Promise.all([
+          fetch('/api/dashboard'),
+          fetch('/api/alerts/fuel-type')
+        ])
+        
+        if (dashboardResponse.ok) {
+          const dashboardData = await dashboardResponse.json()
+          setDashboardData(prev => ({ ...prev, ...dashboardData }))
+        }
+        
+        if (alertsResponse.ok) {
+          const alertsData = await alertsResponse.json()
+          setDashboardData(prev => ({ ...prev, fuelTypeAlerts: alertsData }))
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
@@ -218,6 +242,80 @@ export default function HomePage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Fuel Type Alerts */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">⚠️ Alertas de Combustible</h2>
+          {loading ? (
+            <div className="text-center text-gray-500 py-8">
+              Cargando alertas de combustible...
+            </div>
+          ) : dashboardData.fuelTypeAlerts.length === 0 ? (
+            <div className="text-center text-green-600 py-8">
+              ✅ Sin alertas de combustible
+            </div>
+          ) : (
+            <div>
+              <div className="mb-4">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                  {dashboardData.fuelTypeAlerts.reduce((total, alert) => total + alert.suspiciousLoads.length, 0)} alertas
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dominio</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Secretaría</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dependencia</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo Esperado</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carga Sospechosa</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Litros</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {dashboardData.fuelTypeAlerts
+                      .flatMap(alert => 
+                        alert.suspiciousLoads.map(load => ({
+                          ...alert,
+                          suspiciousLoad: load
+                        }))
+                      )
+                      .slice(0, 5)
+                      .map((row, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="px-4 py-2 text-sm text-gray-900">{row.dominio}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900">{row.mainArea}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900">{row.subArea}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                              row.primaryGroup === 'nafta' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {row.primaryGroup === 'nafta' ? 'Nafta' : 'Gasoil'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-900">{row.suspiciousLoad.product}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900">{row.suspiciousLoad.date}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900">{row.suspiciousLoad.liters.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-4 text-center">
+                <a 
+                  href="/alerts" 
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Ver todas las alertas →
+                </a>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>

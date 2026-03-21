@@ -63,6 +63,8 @@ model Card {
   areaId        String
   subAreaId     String?
   userId        String
+  cardType      String?  @default("vehiculo")  // "vehiculo" or "maquinaria"
+  allowedFuel   String?  @default("nafta")      // "nafta", "gasoil", or "ambos"
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

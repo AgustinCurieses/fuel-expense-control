@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, CreditCard, Save, X, Search, AlertCircle } from 'lucide-react'
+import { Plus, CreditCard, Save, X, Search, AlertCircle, Download } from 'lucide-react'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -33,7 +33,9 @@ export default function CardsPage() {
     cardNumber: '',
     identification: '',
     areaId: '',
-    subAreaId: ''
+    subAreaId: '',
+    cardType: 'vehiculo',
+    allowedFuel: 'nafta'
   })
   const [assignFormData, setAssignFormData] = useState({
     identification: '',
@@ -45,6 +47,35 @@ export default function CardsPage() {
     subAreaId: ''
   })
   const [isLoading, setIsLoading] = useState(true)
+
+  // Export cards function
+  const handleExportCards = async () => {
+    try {
+      const response = await fetch('/api/cards/export')
+      if (!response.ok) {
+        throw new Error('Error exporting cards')
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      
+      // Get filename from response headers
+      const contentDisposition = response.headers.get('content-disposition')
+      const filenameMatch = contentDisposition?.match(/filename="(.+)"/)
+      const filename = filenameMatch ? filenameMatch[1] : 'Tarjetas.xlsx'
+      
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Error exporting cards:', error)
+      alert('Error al exportar tarjetas')
+    }
+  }
 
   useEffect(() => {
     loadData()
@@ -114,7 +145,14 @@ export default function CardsPage() {
   }
 
   const resetForm = () => {
-    setFormData({ cardNumber: '', identification: '', areaId: '', subAreaId: '' })
+    setFormData({ 
+      cardNumber: '', 
+      identification: '', 
+      areaId: '', 
+      subAreaId: '',
+      cardType: 'vehiculo',
+      allowedFuel: 'nafta'
+    })
     setEditingCard(null)
     setIsModalOpen(false)
   }
@@ -125,7 +163,9 @@ export default function CardsPage() {
       cardNumber: card.cardNumber,
       identification: card.identification || '',
       areaId: card.areaId,
-      subAreaId: card.subAreaId || ''
+      subAreaId: card.subAreaId || '',
+      cardType: card.cardType || 'vehiculo',
+      allowedFuel: card.allowedFuel || 'nafta'
     })
     setIsModalOpen(true)
   }
@@ -300,10 +340,16 @@ export default function CardsPage() {
             <h1 className="text-2xl font-bold text-gray-900">Asignación de Tarjetas</h1>
             <p className="text-gray-600">Administre las tarjetas de combustible y asígnelas a áreas</p>
           </div>
-          <Button onClick={() => setIsModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Agregar Tarjeta
-          </Button>
+          <div className="flex space-x-3">
+            <Button onClick={handleExportCards} variant="outline">
+              <Download className="w-4 h-4 mr-2" />
+              Exportar Tarjetas
+            </Button>
+            <Button onClick={() => setIsModalOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Agregar Tarjeta
+            </Button>
+          </div>
         </div>
 
         {/* Search Bar */}
@@ -529,6 +575,65 @@ export default function CardsPage() {
                 options={getSubAreaOptions(formData.areaId)}
                 placeholder="Buscar subárea..."
               />
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tipo de Tarjeta
+              </label>
+              <div className="flex space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="cardType"
+                    value="vehiculo"
+                    checked={formData.cardType === 'vehiculo'}
+                    onChange={(e) => {
+                      const newCardType = e.target.value
+                      setFormData({ 
+                        ...formData, 
+                        cardType: newCardType,
+                        allowedFuel: newCardType === 'vehiculo' ? formData.allowedFuel || 'nafta' : 'ambos'
+                      })
+                    }}
+                    className="mr-2"
+                  />
+                  <span className="text-sm text-gray-700">Vehículo</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="cardType"
+                    value="maquinaria"
+                    checked={formData.cardType === 'maquinaria'}
+                    onChange={(e) => {
+                      setFormData({ 
+                        ...formData, 
+                        cardType: e.target.value,
+                        allowedFuel: 'ambos'
+                      })
+                    }}
+                    className="mr-2"
+                  />
+                  <span className="text-sm text-gray-700">Maquinaria o Equipo</span>
+                </label>
+              </div>
+            </div>
+
+            {formData.cardType === 'vehiculo' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Combustible Permitido
+                </label>
+                <select
+                  value={formData.allowedFuel || 'nafta'}
+                  onChange={(e) => setFormData({ ...formData, allowedFuel: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="nafta">Nafta (Super/Infinia)</option>
+                  <option value="gasoil">Gasoil (Diesel)</option>
+                </select>
+              </div>
             )}
 
             <div className="flex justify-end space-x-3 pt-4">

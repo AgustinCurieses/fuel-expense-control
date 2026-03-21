@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   Fuel,
-  TrendingUp
+  TrendingUp,
+  AlertTriangle
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -50,6 +51,12 @@ const sidebarItems: SidebarItem[] = [
     label: 'Reportes',
     icon: <TrendingUp className="w-5 h-5" />,
     href: '/reports'
+  },
+  {
+    id: 'alerts',
+    label: 'Alertas',
+    icon: <AlertTriangle className="w-5 h-5" />,
+    href: '/alerts'
   },
   {
     id: 'areas',

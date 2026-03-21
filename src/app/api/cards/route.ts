@@ -29,9 +29,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     console.log('Card creation request body:', body)
-    const { cardNumber, identification, areaId, subAreaId } = body
+    const { cardNumber, identification, areaId, subAreaId, cardType, allowedFuel } = body
     
-    console.log('Extracted fields:', { cardNumber, identification, areaId, subAreaId })
+    console.log('Extracted fields:', { cardNumber, identification, areaId, subAreaId, cardType, allowedFuel })
 
     // Ensure we have a valid user - create default user if needed
     let user = await prisma.user.findFirst()
@@ -51,6 +51,8 @@ export async function POST(request: NextRequest) {
         identification: identification || null,
         areaId,
         subAreaId: subAreaId || null,
+        cardType: cardType || 'vehiculo',
+        allowedFuel: allowedFuel || 'nafta',
         userId: user.id
       }
     })
@@ -74,9 +76,9 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
     console.log('Card update request body:', body)
-    const { id, cardNumber, identification, areaId, subAreaId } = body
+    const { id, cardNumber, identification, areaId, subAreaId, cardType, allowedFuel } = body
     
-    console.log('Update extracted fields:', { id, cardNumber, identification, areaId, subAreaId })
+    console.log('Update extracted fields:', { id, cardNumber, identification, areaId, subAreaId, cardType, allowedFuel })
 
     const card = await prisma.card.update({
       where: { id },
@@ -85,6 +87,8 @@ export async function PUT(request: NextRequest) {
         identification: identification || null,
         areaId,
         subAreaId: subAreaId || null,
+        cardType: cardType || 'vehiculo',
+        allowedFuel: allowedFuel || 'nafta',
         updatedAt: new Date()
       }
     })

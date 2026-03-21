@@ -34,6 +34,8 @@ export interface Card {
   areaId: string
   subAreaId?: string | null
   userId: string
+  cardType?: string | null
+  allowedFuel?: string | null
   area?: MainArea
   subArea?: SubArea
   user?: User
@@ -127,4 +129,6 @@ export interface CardFormData {
   identification?: string | null
   areaId: string
   subAreaId?: string | null
+  cardType?: string
+  allowedFuel?: string
 }

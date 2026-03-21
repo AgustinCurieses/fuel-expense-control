@@ -1096,6 +1096,50 @@ currentRow++
       right: { style: 'medium' }
     }
 
+    // Alert 4: Fuel type change alerts
+    const fuelTypeAlertsResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/alerts/fuel-type`)
+    const fuelTypeAlerts = fuelTypeAlertsResponse.ok ? await fuelTypeAlertsResponse.json() : []
+    
+    if (fuelTypeAlerts.length > 0) {
+      currentRow++
+      const allSuspiciousLoads = fuelTypeAlerts.flatMap(alert => 
+        alert.suspiciousLoads.map(load => ({
+          dominio: alert.dominio,
+          secretaria: alert.mainArea,
+          primaryGroup: alert.primaryGroup,
+          ...load
+        }))
+      )
+      
+      // Show maximum 5 alerts
+      const topAlerts = allSuspiciousLoads.slice(0, 5)
+      
+      topAlerts.forEach((alert, index) => {
+        currentRow++
+        worksheet.getCell(`A${currentRow}`).value = `🔴 Cambio de combustible sospechoso: ${alert.dominio} (${alert.secretaria}) cargó ${alert.product} siendo un vehículo de ${alert.primaryGroup === 'nafta' ? 'nafta' : 'gasoil'}`
+        worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10 }
+        worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'left', vertical: 'middle' }
+        worksheet.getCell(`A${currentRow}`).border = {
+          top: { style: 'medium' },
+          bottom: { style: 'medium' },
+          left: { style: 'medium' },
+          right: { style: 'medium' }
+        }
+      })
+      
+      if (allSuspiciousLoads.length > 5) {
+        currentRow++
+        worksheet.getCell(`A${currentRow}`).value = `y ${allSuspiciousLoads.length - 5} cambios sospechosos más`
+        worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9, italic: true }
+        worksheet.getCell(`A${currentRow}`).border = {
+          top: { style: 'medium' },
+          bottom: { style: 'medium' },
+          left: { style: 'medium' },
+          right: { style: 'medium' }
+        }
+      }
+    }
+
     // Generate buffer
     const buffer = await workbook.xlsx.writeBuffer()
     
