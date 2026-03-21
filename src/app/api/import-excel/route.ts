@@ -157,7 +157,8 @@ export async function POST(request: NextRequest) {
       totalRows: data.length - 1,
       importedRows: 0,
       pendingRows: 0,  
-      duplicateRows: 0,  
+      duplicateRows: 0,
+      updatedRows: 0,  // New field for factura updates
       failedRows: 0,
       errors: [],
       warnings: [],
@@ -227,9 +228,22 @@ export async function POST(request: NextRequest) {
           })
           
           if (existingLog) {
-            results.duplicateRows++
-            results.warnings.push(`Fila ${i + 1}: Remito "${rowData.remito}" ya existe en la base de datos`)
-            continue
+            // Check if existing log has null factura and new row has factura value
+            if (existingLog.factura === null && rowData.factura) {
+              // Update only the factura field
+              await prisma.fuelLog.update({
+                where: { id: existingLog.id },
+                data: { factura: rowData.factura }
+              })
+              results.updatedRows++
+              results.warnings.push(`Fila ${i + 1}: Remito "${rowData.remito}" existente - actualizado con número de factura`)
+              continue
+            } else {
+              // Skip as duplicate (factura already exists or no new factura provided)
+              results.duplicateRows++
+              results.warnings.push(`Fila ${i + 1}: Remito "${rowData.remito}" ya existe en la base de datos`)
+              continue
+            }
           }
         }
 

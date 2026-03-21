@@ -206,7 +206,7 @@ export default function ImportPage() {
               </div>
 
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="text-center p-4 bg-gray-50 rounded-lg">
                     <p className="text-2xl font-bold text-gray-900">{importResult.totalRows}</p>
                     <p className="text-sm text-gray-600">Total de Filas</p>
@@ -219,7 +219,21 @@ export default function ImportPage() {
                     <p className="text-2xl font-bold text-red-600">{importResult.failedRows}</p>
                     <p className="text-sm text-red-600">Filas Fallidas</p>
                   </div>
+                  {importResult.updatedRows > 0 && (
+                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                      <p className="text-2xl font-bold text-blue-600">{importResult.updatedRows}</p>
+                      <p className="text-sm text-blue-600">Registros Actualizados</p>
+                    </div>
+                  )}
                 </div>
+
+                {importResult.updatedRows > 0 && (
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>{importResult.updatedRows} registros actualizados con número de factura</strong>
+                    </p>
+                  </div>
+                )}
 
                 {importResult.errors.length > 0 && (
                   <div className="mt-4">
