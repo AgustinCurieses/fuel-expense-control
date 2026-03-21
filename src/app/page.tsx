@@ -30,6 +30,11 @@ interface DashboardData {
       remito: string
     }>
   }>
+  fuelPrices: Array<{
+    product: string
+    pricePerLiter: number
+    date: Date
+  }> | null
 }
 
 export default function HomePage() {
@@ -40,7 +45,8 @@ export default function HomePage() {
     pendingCards: 0,
     lastImportDate: null,
     recentActivity: [],
-    fuelTypeAlerts: []
+    fuelTypeAlerts: [],
+    fuelPrices: null
   })
   const [loading, setLoading] = useState(true)
 
@@ -54,7 +60,11 @@ export default function HomePage() {
         
         if (dashboardResponse.ok) {
           const dashboardData = await dashboardResponse.json()
-          setDashboardData(prev => ({ ...prev, ...dashboardData }))
+          setDashboardData(prev => ({ 
+            ...prev, 
+            ...dashboardData,
+            fuelPrices: dashboardData.fuelPrices || null 
+          }))
         }
         
         if (alertsResponse.ok) {
@@ -124,25 +134,40 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Most Active Area */}
+          {/* Últimos Precios de Combustible */}
           <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-lg shadow-sm p-6 text-white">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-green-500 bg-opacity-30 rounded-lg">
-                <MapPin className="w-6 h-6" />
+                <DollarSign className="w-6 h-6" />
               </div>
               <span className="text-sm bg-green-500 bg-opacity-30 px-2 py-1 rounded">
-                Más Activa
+                Últimos Precios
               </span>
             </div>
-            <div className="space-y-1">
-              <p className="text-3xl font-bold">{loading ? 'Cargando...' : dashboardData.mostActiveArea}</p>
-              <p className="text-green-100 text-sm">Área Más Activa</p>
-            </div>
-            <div className="mt-4 pt-4 border-t border-green-500 border-opacity-30">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-green-100">Transacciones</span>
-                <span className="text-white">{loading ? '0' : dashboardData.mostActiveAreaCount}</span>
-              </div>
+            <div className="space-y-2">
+              {loading ? (
+                <p className="text-green-100 text-sm">Cargando...</p>
+              ) : dashboardData.fuelPrices && dashboardData.fuelPrices.length > 0 ? (
+                dashboardData.fuelPrices
+                  .sort((a, b) => {
+                    // Define order: NAFTA SUPER, INFINIA, D.DIESEL 500, INFINIA DIESEL
+                    const order = ['NAFTA SUPER', 'INFINIA', 'D.DIESEL 500', 'INFINIA DIESEL']
+                    return order.indexOf(a.product) - order.indexOf(b.product)
+                  })
+                  .map((fuel, index) => (
+                    <div key={index} className="grid grid-cols-3 gap-4 items-center text-sm">
+                      <span className="text-green-100 text-left">{fuel.product}</span>
+                      <span className="text-white font-medium text-center">
+                        ${fuel.pricePerLiter.toFixed(2).replace('.', ',')} /L
+                      </span>
+                      <span className="text-green-100 text-xs text-right">
+                        {new Date(fuel.date).toLocaleDateString('es-AR')}
+                      </span>
+                    </div>
+                  ))
+              ) : (
+                <p className="text-green-100 text-sm">Sin datos</p>
+              )}
             </div>
           </div>
 

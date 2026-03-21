@@ -177,13 +177,48 @@ export async function GET() {
     recentActivity.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     const limitedActivity = recentActivity.slice(0, 5)
 
+    // 5. Últimos Precios de Combustible: Most recent FuelLog for each fuel type
+    const fuelTypes = ["INFINIA DIESEL", "NAFTA SUPER", "INFINIA", "D.DIESEL 500"]
+    const fuelPrices = await Promise.all(
+      fuelTypes.map(async (product) => {
+        const recentLog = await prisma.fuelLog.findFirst({
+          where: {
+            description: product,
+            status: 'IMPORTED'
+          },
+          orderBy: {
+            date: 'desc'
+          },
+          select: {
+            amount: true,
+            gallons: true,
+            date: true
+          }
+        })
+
+        if (!recentLog || !recentLog.gallons || recentLog.gallons === 0) {
+          return null
+        }
+
+        const pricePerLiter = recentLog.amount / recentLog.gallons
+        return {
+          product,
+          pricePerLiter,
+          date: recentLog.date
+        }
+      })
+    )
+
+    const validFuelPrices = fuelPrices.filter(price => price !== null)
+
     return NextResponse.json({
       totalSpending: formatARS(totalSpending._sum.amount || 0),
       mostActiveArea: mostActiveAreaName,
       mostActiveAreaCount,
       pendingCards: pendingCards.length,
       lastImportDate,
-      recentActivity: limitedActivity
+      recentActivity: limitedActivity,
+      fuelPrices: validFuelPrices
     })
 
   } catch (error) {
