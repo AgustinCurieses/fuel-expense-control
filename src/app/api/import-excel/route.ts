@@ -214,7 +214,10 @@ export async function POST(request: NextRequest) {
 
             rowData[field] = parseExcelDate(value)
           } else if (field === 'litros' || field === 'importe') {
-            rowData[field] = value ? parseFloat(value.toString().replace(',', '.')) : 0
+            // Store full precision without rounding
+            const valueStr = value ? value.toString().replace(',', '.') : '0'
+            const parsedValue = parseFloat(valueStr)
+            rowData[field] = isNaN(parsedValue) ? 0 : parsedValue
           } else {
             // For optional fields, store empty string if not found
             rowData[field] = value ? value.toString().trim() : ''

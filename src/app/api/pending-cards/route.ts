@@ -5,7 +5,7 @@ export async function GET() {
   try {
     console.log('=== FETCHING PENDING CARDS ===')
     
-    // Get all pending fuel logs and group by card number
+    // Get all pending fuel logs with dominio field
     const pendingLogs = await prisma.fuelLog.findMany({
       where: {
         status: 'PENDING',
@@ -15,26 +15,34 @@ export async function GET() {
       },
       select: {
         cardNumber: true,
-        id: true
+        id: true,
+        dominio: true,
+        date: true
+      },
+      orderBy: {
+        date: 'desc'
       }
     })
 
     console.log(`Found ${pendingLogs.length} pending logs`)
 
-    // Group by card number and count
-    const pendingCards = pendingLogs.reduce((acc: Record<string, { cardNumber: string; count: number }>, log: any) => {
+    // Group by card number and get most recent dominio
+    const pendingCardsMap = new Map<string, { cardNumber: string; count: number; identification: string | null }>()
+    
+    for (const log of pendingLogs) {
       const cardNumber = log.cardNumber!
-      if (!acc[cardNumber]) {
-        acc[cardNumber] = {
+      
+      if (!pendingCardsMap.has(cardNumber)) {
+        pendingCardsMap.set(cardNumber, {
           cardNumber,
-          count: 0
-        }
+          count: 0,
+          identification: log.dominio
+        })
       }
-      acc[cardNumber].count++
-      return acc
-    }, {} as Record<string, { cardNumber: string; count: number }>)
+      pendingCardsMap.get(cardNumber)!.count++
+    }
 
-    const result = Object.values(pendingCards)
+    const result = Array.from(pendingCardsMap.values())
     console.log(`Returning ${result.length} unique pending cards`)
 
     return NextResponse.json(result)

@@ -12,6 +12,7 @@ import { Card, MainArea, SubArea, CardFormData } from '@/types'
 interface PendingCard {
   cardNumber: string
   count: number
+  identification: string | null
 }
 
 export default function CardsPage() {
@@ -366,12 +367,85 @@ export default function CardsPage() {
           </div>
         </div>
 
+        {/* Pending Cards Section */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="w-5 h-5 text-orange-500" />
+              <h2 className="text-lg font-semibold text-gray-900">
+                Tarjetas Pendientes de Asignación
+                {pendingCards.length > 0 && (
+                  <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    {pendingCards.length}
+                  </span>
+                )}
+              </h2>
+            </div>
+          </div>
+          
+          <div className="p-6">
+            {pendingCards.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-green-600 font-medium">No hay tarjetas pendientes de asignación</div>
+                <div className="text-gray-500 text-sm mt-1">Todas las tarjetas han sido asignadas correctamente</div>
+              </div>
+            ) : (
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Número de Tarjeta
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Identificación
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Cargas Pendientes
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {pendingCards.map((pendingCard) => (
+                    <tr key={pendingCard.cardNumber} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <CreditCard className="w-4 h-4 text-orange-400 mr-2" />
+                          <span className="text-sm font-medium text-gray-900">{pendingCard.cardNumber}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-900">{pendingCard.identification || '-'}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                          {pendingCard.count}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          onClick={() => handleAssignCard(pendingCard)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          Asignar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
         {/* Cards Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center space-x-2">
               <CreditCard className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Tarjetas de Combustible</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Tarjetas Registradas</h2>
               <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
                 {filteredCards.length} tarjetas
               </span>
@@ -465,73 +539,6 @@ export default function CardsPage() {
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-
-        {/* Pending Cards Section */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center space-x-2">
-              <AlertCircle className="w-5 h-5 text-orange-500" />
-              <h2 className="text-lg font-semibold text-gray-900">
-                Tarjetas Pendientes de Asignación
-                {pendingCards.length > 0 && (
-                  <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                    {pendingCards.length}
-                  </span>
-                )}
-              </h2>
-            </div>
-          </div>
-          
-          <div className="p-6">
-            {pendingCards.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="text-green-600 font-medium">No hay tarjetas pendientes de asignación</div>
-                <div className="text-gray-500 text-sm mt-1">Todas las tarjetas han sido asignadas correctamente</div>
-              </div>
-            ) : (
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Número de Tarjeta
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Cargas Pendientes
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {pendingCards.map((pendingCard) => (
-                    <tr key={pendingCard.cardNumber} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <CreditCard className="w-4 h-4 text-orange-400 mr-2" />
-                          <span className="text-sm font-medium text-gray-900">{pendingCard.cardNumber}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
-                          {pendingCard.count}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => handleAssignCard(pendingCard)}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          Asignar
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
           </div>
         </div>
 

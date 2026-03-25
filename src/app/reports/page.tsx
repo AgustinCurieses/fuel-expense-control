@@ -21,6 +21,9 @@ export default function ReportsPage() {
   const [facturaFilter, setFacturaFilter] = useState<string>('')
   const [filterMode, setFilterMode] = useState<'period' | 'factura'>('period')
   const [availableFacturas, setAvailableFacturas] = useState<any[]>([])
+  const [facturaTotal, setFacturaTotal] = useState<any>(null)
+  const [totalOficial, setTotalOficial] = useState<string>('')
+  const [isSavingTotal, setIsSavingTotal] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -91,6 +94,59 @@ export default function ReportsPage() {
       }
     } catch (error) {
       console.error('Error loading data:', error)
+    }
+  }
+
+  const loadFacturaTotal = async (factura: string) => {
+    if (!factura) {
+      setFacturaTotal(null)
+      setTotalOficial('')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/facturas/total?factura=${encodeURIComponent(factura)}`)
+      if (response.ok) {
+        const data = await response.json()
+        setFacturaTotal(data)
+        setTotalOficial(data.totalOficial ? data.totalOficial.toString() : '')
+      }
+    } catch (error) {
+      console.error('Error loading factura total:', error)
+    }
+  }
+
+  const handleSaveTotalOficial = async () => {
+    if (!facturaFilter || !totalOficial) {
+      alert('Por favor ingrese el total oficial')
+      return
+    }
+
+    setIsSavingTotal(true)
+    try {
+      const response = await fetch('/api/facturas/total', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          factura: facturaFilter,
+          totalOficial: parseFloat(totalOficial.replace(',', '.'))
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setFacturaTotal(data)
+        alert('Total oficial guardado correctamente')
+      } else {
+        alert('Error al guardar el total oficial')
+      }
+    } catch (error) {
+      console.error('Error saving factura total:', error)
+      alert('Error al guardar el total oficial')
+    } finally {
+      setIsSavingTotal(false)
     }
   }
 
@@ -283,7 +339,7 @@ export default function ReportsPage() {
 
   // Filter data based on selected filters
   const filteredData = fuelLogs.filter(log => {
-    if (selectedArea && log.card.areaId !== selectedArea) return false
+    if (selectedArea && (!log.card || log.card.areaId !== selectedArea)) return false
     if (startDate && new Date(log.date) < new Date(startDate)) return false
     if (endDate && new Date(log.date) > new Date(endDate)) return false
     return true
@@ -493,7 +549,10 @@ export default function ReportsPage() {
                 <Select
                   label="Número de Factura"
                   value={facturaFilter}
-                  onChange={(e) => setFacturaFilter(e.target.value)}
+                  onChange={(e) => {
+                    setFacturaFilter(e.target.value)
+                    loadFacturaTotal(e.target.value)
+                  }}
                   options={
                     availableFacturas.length > 0
                       ? availableFacturas.map(factura => ({
@@ -509,6 +568,73 @@ export default function ReportsPage() {
             )}
           </div>
         </div>
+
+        {/* Invoice Total Validation - Only show when factura is selected */}
+        {filterMode === 'factura' && facturaFilter && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Validación de Total de Factura</h3>
+            
+            {facturaTotal && (
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">
+                  Total calculado desde la base de datos:
+                </p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {facturaTotal.totalCalculadoFormateado}
+                </p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div>
+                <Input
+                  label="Total Oficial YPF"
+                  value={totalOficial}
+                  onChange={(e) => setTotalOficial(e.target.value)}
+                  placeholder="Ingrese el total oficial de la factura"
+                />
+              </div>
+              <div>
+                <Button
+                  onClick={handleSaveTotalOficial}
+                  disabled={isSavingTotal || !totalOficial}
+                  className="w-full"
+                >
+                  {isSavingTotal ? 'Guardando...' : 'Guardar'}
+                </Button>
+              </div>
+              <div></div>
+            </div>
+
+            {facturaTotal && facturaTotal.totalOficial && (
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <h4 className="text-md font-semibold text-gray-900 mb-3">Comparación de Totales</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total App:</span>
+                    <span className="font-semibold">{facturaTotal.totalCalculadoFormateado}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total YPF:</span>
+                    <span className="font-semibold">{facturaTotal.totalOficialFormateado}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-gray-200">
+                    <span className="text-gray-900 font-medium">Diferencia:</span>
+                    <span className={`font-bold ${
+                      Math.abs(facturaTotal.diferencia || 0) < 1 
+                        ? 'text-green-600'
+                        : Math.abs(facturaTotal.diferencia || 0) <= 100
+                        ? 'text-yellow-600'
+                        : 'text-red-600'
+                    }`}>
+                      {facturaTotal.diferenciaFormateada}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">

@@ -154,3 +154,13 @@ model CardAreaHistory {
 
   @@map("card_area_history")
 }
+
+model FacturaTotal {
+  id          String   @id @default(cuid())
+  factura     String   @unique
+  totalOficial Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("factura_totals")
+}
