@@ -163,230 +163,54 @@ export async function GET(request: NextRequest) {
 
     // Calculate KPIs
     const totalFacturado = fuelLogs.reduce((sum, log) => sum + log.amount, 0)
-    const activeVehicles = new Set(fuelLogs.map(log => log.card?.cardNumber)).size
+    const vehiculosActivos = new Set(fuelLogs.map(log => log.card?.cardNumber)).size
     const totalCargas = fuelLogs.length
     const totalLitros = fuelLogs.reduce((sum, log) => sum + log.gallons, 0)
     const precioPromedio = totalLitros > 0 ? totalFacturado / totalLitros : 0
 
-    console.log('KPIs calculated:', { totalFacturado, activeVehicles, totalCargas, totalLitros, precioPromedio })
+    console.log('KPIs calculated:', { totalFacturado, vehiculosActivos, totalCargas, totalLitros, precioPromedio })
 
-    // KPI Box 1 - Total Facturado (A4:D5)
-    worksheet.mergeCells('A4:D4')
-    worksheet.getCell('A4').value = 'Total Facturado'
-    worksheet.getCell('A4').font = { name: 'Calibri', size: 10, bold: true }
-    worksheet.getCell('A4').alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell('A4').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
+    // Row 4 - KPI Labels
+worksheet.mergeCells('A4:D4')
+worksheet.getCell('A4').value = 'Total Facturado'
+worksheet.getCell('A4').font = { bold: true, name: 'Calibri', size: 11 }
+worksheet.getCell('A4').alignment = { horizontal: 'center', vertical: 'middle' }
 
-    worksheet.mergeCells('A5:D5')
-    worksheet.getCell('A5').value = formatARS(totalFacturado)
-    worksheet.getCell('A5').font = { name: 'Calibri', size: 14, bold: true }
-    worksheet.getCell('A5').alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell('A5').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
+worksheet.mergeCells('E4:H4')
+worksheet.getCell('E4').value = 'Vehículos Activos'
+worksheet.getCell('E4').font = { bold: true, name: 'Calibri', size: 11 }
+worksheet.getCell('E4').alignment = { horizontal: 'center', vertical: 'middle' }
 
-    // KPI Box 2 - Vehículos Activos (E4:H5)
-    // Label row
-    worksheet.getCell('E4').value = 'Vehículos Activos'
-    worksheet.getCell('E4').font = { name: 'Calibri', size: 10, bold: true }
-    worksheet.getCell('E4').alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell('E4').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('F4').value = ''
-    worksheet.getCell('F4').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('G4').value = ''
-    worksheet.getCell('G4').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('H4').value = ''
-    worksheet.getCell('H4').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    
-    // Value row
-    worksheet.getCell('E5').value = activeVehicles.toString()
-    worksheet.getCell('E5').font = { name: 'Calibri', size: 14, bold: true }
-    worksheet.getCell('E5').alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell('E5').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('F5').value = ''
-    worksheet.getCell('F5').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('G5').value = ''
-    worksheet.getCell('G5').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('H5').value = ''
-    worksheet.getCell('H5').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
+worksheet.mergeCells('I4:L4')
+worksheet.getCell('I4').value = 'Total de Cargas'
+worksheet.getCell('I4').font = { bold: true, name: 'Calibri', size: 11 }
+worksheet.getCell('I4').alignment = { horizontal: 'center', vertical: 'middle' }
 
-    // KPI Box 3 - Total de Cargas (I4:L5)
-    // Label row
-    worksheet.getCell('I4').value = 'Total de Cargas'
-    worksheet.getCell('I4').font = { name: 'Calibri', size: 10, bold: true }
-    worksheet.getCell('I4').alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell('I4').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('J4').value = ''
-    worksheet.getCell('J4').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('K4').value = ''
-    worksheet.getCell('K4').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('L4').value = ''
-    worksheet.getCell('L4').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    
-    // Value row
-    worksheet.getCell('I5').value = totalCargas.toString()
-    worksheet.getCell('I5').font = { name: 'Calibri', size: 14, bold: true }
-    worksheet.getCell('I5').alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell('I5').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('J5').value = ''
-    worksheet.getCell('J5').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('K5').value = ''
-    worksheet.getCell('K5').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('L5').value = ''
-    worksheet.getCell('L5').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
+worksheet.mergeCells('M4:P4')
+worksheet.getCell('M4').value = 'Precio Promedio/Litro'
+worksheet.getCell('M4').font = { bold: true, name: 'Calibri', size: 11 }
+worksheet.getCell('M4').alignment = { horizontal: 'center', vertical: 'middle' }
 
-    // KPI Box 4 - Precio Promedio/Litro (M4:P5)
-    // Label row
-    worksheet.getCell('M4').value = 'Precio Promedio/Litro'
-    worksheet.getCell('M4').font = { name: 'Calibri', size: 10, bold: true }
-    worksheet.getCell('M4').alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell('M4').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('N4').value = ''
-    worksheet.getCell('N4').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('O4').value = ''
-    worksheet.getCell('O4').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('P4').value = ''
-    worksheet.getCell('P4').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    
-    // Value row
-    worksheet.getCell('M5').value = formatARS(precioPromedio)
-    worksheet.getCell('M5').font = { name: 'Calibri', size: 14, bold: true }
-    worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell('M5').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('N5').value = ''
-    worksheet.getCell('N5').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('O5').value = ''
-    worksheet.getCell('O5').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-    worksheet.getCell('P5').value = ''
-    worksheet.getCell('P5').border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
+// Row 5 - KPI Values
+worksheet.mergeCells('A5:D5')
+worksheet.getCell('A5').value = formatARS(totalFacturado)
+worksheet.getCell('A5').font = { bold: true, name: 'Calibri', size: 14 }
+worksheet.getCell('A5').alignment = { horizontal: 'center', vertical: 'middle' }
+
+worksheet.mergeCells('E5:H5')
+worksheet.getCell('E5').value = String(vehiculosActivos)
+worksheet.getCell('E5').font = { bold: true, name: 'Calibri', size: 14 }
+worksheet.getCell('E5').alignment = { horizontal: 'center', vertical: 'middle' }
+
+worksheet.mergeCells('I5:L5')
+worksheet.getCell('I5').value = String(totalCargas)
+worksheet.getCell('I5').font = { bold: true, name: 'Calibri', size: 14 }
+worksheet.getCell('I5').alignment = { horizontal: 'center', vertical: 'middle' }
+
+worksheet.mergeCells('M5:P5')
+worksheet.getCell('M5').value = formatARS(precioPromedio)
+worksheet.getCell('M5').font = { bold: true, name: 'Calibri', size: 14 }
+worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
 
     currentRow = 6 // Row after KPIs
 
@@ -920,7 +744,7 @@ currentRow++
 
     // Generate alerts
     const alerts = []
-    const averageConsumptionPerVehicle = activeVehicles > 0 ? totalLitros / activeVehicles : 0
+    const averageConsumptionPerVehicle = vehiculosActivos > 0 ? totalLitros / vehiculosActivos : 0
     
     // Alert 1: High consumption vehicles (> 50% above average) - TOP 5 ONLY
     const highConsumptionVehicles = Object.keys(vehicleConsumption)
