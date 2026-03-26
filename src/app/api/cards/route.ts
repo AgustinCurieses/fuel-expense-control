@@ -29,32 +29,26 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     console.log('Card creation request body:', body)
-    const { cardNumber, identification, areaId, subAreaId, cardType, allowedFuel } = body
+    const { cardNumber, identification, areaId, subAreaId, cardType, allowedFuel, userId } = body
     
-    console.log('Extracted fields:', { cardNumber, identification, areaId, subAreaId, cardType, allowedFuel })
+    console.log('Extracted fields:', { cardNumber, identification, areaId, subAreaId, cardType, allowedFuel, userId })
 
-    // Ensure we have a valid user - create default user if needed
-    let user = await prisma.user.findFirst()
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          email: 'default@example.com',
-          name: 'Default User'
-        }
-      })
-      console.log('Created default user:', user.id)
+    const cardData: any = {
+      cardNumber,
+      identification: identification || null,
+      areaId,
+      subAreaId: subAreaId || null,
+      cardType: cardType || 'vehiculo',
+      allowedFuel: allowedFuel || 'nafta'
+    }
+
+    // Only include userId if provided
+    if (userId) {
+      cardData.userId = userId
     }
 
     const card = await prisma.card.create({
-      data: {
-        cardNumber,
-        identification: identification || null,
-        areaId,
-        subAreaId: subAreaId || null,
-        cardType: cardType || 'vehiculo',
-        allowedFuel: allowedFuel || 'nafta',
-        userId: user.id
-      }
+      data: cardData
     })
 
     return NextResponse.json({

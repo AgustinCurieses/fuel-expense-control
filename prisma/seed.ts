@@ -251,7 +251,7 @@ async function main() {
   }
 
   // Get unique main areas
-  const uniqueMainAreas = Array.from(new Set(data.map(item => item.mainArea)))
+  const uniqueMainAreas = [...new Set(data.map(item => item.mainArea))]
   
   for (const mainAreaName of uniqueMainAreas) {
     await prisma.mainArea.upsert({
@@ -266,7 +266,7 @@ async function main() {
   const mainAreaMap = new Map(mainAreas.map(area => [area.name, area]))
 
   // Get unique sub areas
-  const uniqueSubAreas = Array.from(new Set(data.map(item => `${item.mainArea}|${item.subArea}`)))
+  const uniqueSubAreas = [...new Set(data.map(item => `${item.mainArea}|${item.subArea}`))]
   
   for (const subAreaKey of uniqueSubAreas) {
     const [mainAreaName, subAreaName] = subAreaKey.split('|')
@@ -313,7 +313,6 @@ async function main() {
           subAreaId: subArea.id,
           cardType: cardData.cardType,
           allowedFuel: cardData.allowedFuel,
-          userId: user.id,
         }
       })
 

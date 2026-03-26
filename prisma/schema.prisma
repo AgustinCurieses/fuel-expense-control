@@ -62,7 +62,7 @@ model Card {
   identification String?
   areaId        String
   subAreaId     String?
-  userId        String
+  userId        String?
   cardType      String?  @default("vehiculo")  // "vehiculo" or "maquinaria"
   allowedFuel   String?  @default("nafta")      // "nafta", "gasoil", or "ambos"
   createdAt     DateTime @default(now())
@@ -71,7 +71,7 @@ model Card {
   // Relations
   area          MainArea  @relation(fields: [areaId], references: [id], onDelete: Cascade)
   subArea       SubArea?  @relation(fields: [subAreaId], references: [id], onDelete: SetNull)
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   fuelLogs     FuelLog[]
   areaHistory  CardAreaHistory[]
 
