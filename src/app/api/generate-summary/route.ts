@@ -95,32 +95,42 @@ export async function GET(request: NextRequest) {
       margins: { left: 0.5, right: 0.5, top: 0.5, bottom: 0.5, header: 0, footer: 0 }
     }
 
-    // Column widths for portrait A4 (10 columns A-J)
-    worksheet.columns = [
-      { width: 22 }, // A
-      { width: 8 },  // B
-      { width: 10 }, // C
-      { width: 10 }, // D
-      { width: 10 }, // E
-      { width: 10 }, // F
-      { width: 16 }, // G
-      { width: 8 },  // H
-      { width: 18 }, // I
-      { width: 10 }  // J
-    ]
+    // Set ALL column widths explicitly using getColumn() method for better control
+    worksheet.getColumn('A').width = 22;   // Secretaría names
+    worksheet.getColumn('B').width = 7;    // Cargas
+    worksheet.getColumn('C').width = 10;   // Inf. Diesel
+    worksheet.getColumn('D').width = 10;   // Nafta Super
+    worksheet.getColumn('E').width = 9;    // Infinia
+    worksheet.getColumn('F').width = 10;   // D.Diesel 500
+    worksheet.getColumn('G').width = 16;   // Importe
+    worksheet.getColumn('H').width = 8;    // % del Total
+    worksheet.getColumn('I').width = 18;   // (Top5: Importe)
+    worksheet.getColumn('J').width = 14;   // (Top5: % del Total / KPI: Precio/Litro)
 
     // Disable gridlines
     // worksheet.showGridLines = false // Commented out as property doesn't exist
 
-    // Set all row heights at the beginning using customHeight property
+    // Set all row heights at the beginning
     for (let i = 1; i <= 50; i++) {
       const row = worksheet.getRow(i)
-      if (i === 1 || i === 2) row.height = 20
-      else if (i === 3 || i === 6 || i === 19 || i === 27) row.height = 8
-      else if (i === 4 || i === 5) row.height = 22
-      else if ([7, 20, 28].includes(i)) row.height = 18
-      else if ([8, 21, 29, 33].includes(i)) row.height = 16
-      else row.height = 14
+      if (i === 1 || i === 2) {
+        row.height = 20
+      }
+      else if (i === 3 || i === 6 || i === 19 || i === 27) {
+        row.height = 8
+      }
+      else if (i === 4 || i === 5) {
+        row.height = 22
+      }
+      else if ([7, 20, 28].includes(i)) {
+        row.height = 18
+      }
+      else if ([8, 21, 29, 33].includes(i)) {
+        row.height = 16
+      }
+      else {
+        row.height = 14
+      }
       row.hidden = false
     }
 
@@ -166,33 +176,61 @@ export async function GET(request: NextRequest) {
 
     console.log('KPIs calculated:', { totalFacturado, vehiculosActivos, totalCargas, totalLitros, precioPromedio })
 
-    // KPI labels - row 4
-    const kpiLabelCells = ['A4', 'D4', 'G4', 'J4']
-    const kpiLabels = ['Total Facturado', 'Vehículos Activos', 'Total de Cargas', 'Precio Prom/Litro']
-    kpiLabelCells.forEach((cellRef, i) => {
-      const cell = worksheet.getCell(cellRef)
-      cell.value = kpiLabels[i]
-      cell.font = { bold: true, name: 'Calibri', size: 9 }
-      cell.alignment = { horizontal: 'center', vertical: 'middle' }
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
-      cell.border = { top: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' }, bottom: { style: 'thin' } }
-    })
+    // KPI labels - row 4 (merge 3 columns each)
+    worksheet.mergeCells('A4:C4')
+    worksheet.getCell('A4').value = 'Total Facturado'
+    worksheet.getCell('A4').font = { bold: true, name: 'Calibri', size: 9 }
+    worksheet.getCell('A4').alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell('A4').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell('A4').border = { top: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' }, bottom: { style: 'thin' } }
+    
+    worksheet.mergeCells('D4:F4')
+    worksheet.getCell('D4').value = 'Vehículos Activos'
+    worksheet.getCell('D4').font = { bold: true, name: 'Calibri', size: 9 }
+    worksheet.getCell('D4').alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell('D4').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell('D4').border = { top: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' }, bottom: { style: 'thin' } }
+    
+    worksheet.mergeCells('G4:I4')
+    worksheet.getCell('G4').value = 'Total de Cargas'
+    worksheet.getCell('G4').font = { bold: true, name: 'Calibri', size: 9 }
+    worksheet.getCell('G4').alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell('G4').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell('G4').border = { top: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' }, bottom: { style: 'thin' } }
+    
+    worksheet.getCell('J4').value = 'Precio/Litro'
+    worksheet.getCell('J4').font = { bold: true, name: 'Calibri', size: 9 }
+    worksheet.getCell('J4').alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell('J4').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell('J4').border = { top: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' }, bottom: { style: 'thin' } }
 
-    // KPI values - row 5
-    const kpiValueCells = ['A5', 'D5', 'G5', 'J5']
-    const kpiValues = [formatARS(totalFacturado), String(vehiculosActivos), String(totalCargas), formatARS(precioPromedio)]
-    kpiValueCells.forEach((cellRef, i) => {
-      const cell = worksheet.getCell(cellRef)
-      cell.value = kpiValues[i]
-      cell.font = { bold: true, name: 'Calibri', size: 13 }
-      cell.alignment = { horizontal: 'center', vertical: 'middle' }
-      cell.border = { top: { style: 'thin' }, left: { style: 'medium' }, right: { style: 'medium' }, bottom: { style: 'medium' } }
-    })
+    // KPI values - row 5 (merge 3 columns each)
+    worksheet.mergeCells('A5:C5')
+    worksheet.getCell('A5').value = formatARS(totalFacturado)
+    worksheet.getCell('A5').font = { bold: true, name: 'Calibri', size: 13 }
+    worksheet.getCell('A5').alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell('A5').border = { top: { style: 'thin' }, left: { style: 'medium' }, right: { style: 'medium' }, bottom: { style: 'medium' } }
+    
+    worksheet.mergeCells('D5:F5')
+    worksheet.getCell('D5').value = String(vehiculosActivos)
+    worksheet.getCell('D5').font = { bold: true, name: 'Calibri', size: 13 }
+    worksheet.getCell('D5').alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell('D5').border = { top: { style: 'thin' }, left: { style: 'medium' }, right: { style: 'medium' }, bottom: { style: 'medium' } }
+    
+    worksheet.mergeCells('G5:I5')
+    worksheet.getCell('G5').value = String(totalCargas)
+    worksheet.getCell('G5').font = { bold: true, name: 'Calibri', size: 13 }
+    worksheet.getCell('G5').alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell('G5').border = { top: { style: 'thin' }, left: { style: 'medium' }, right: { style: 'medium' }, bottom: { style: 'medium' } }
+    
+    worksheet.getCell('J5').value = formatARS(precioPromedio)
+    worksheet.getCell('J5').font = { bold: true, name: 'Calibri', size: 13 }
+    worksheet.getCell('J5').alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell('J5').border = { top: { style: 'thin' }, left: { style: 'medium' }, right: { style: 'medium' }, bottom: { style: 'medium' } }
 
     // Row 6: Empty row
     const row6 = worksheet.getRow(6)
     row6.height = 8
-    row6.commit()
 
     // SECTION 3 - Consumption by Secretaría (rows 7-19)
     let currentRow = 7
@@ -212,7 +250,6 @@ export async function GET(request: NextRequest) {
     }
     const sectionTitleRow7 = worksheet.getRow(7)
     sectionTitleRow7.height = 18
-    sectionTitleRow7.commit()
     currentRow++
 
     // Row 8: Headers
@@ -232,7 +269,6 @@ export async function GET(request: NextRequest) {
     })
     const headerRow8 = worksheet.getRow(8)
     headerRow8.height = 16
-    headerRow8.commit()
     currentRow++
 
     // Group consumption by MainArea
@@ -366,7 +402,6 @@ export async function GET(request: NextRequest) {
       
       const dataRow = worksheet.getRow(currentRow)
       dataRow.height = 14
-      dataRow.commit()
       currentRow++
       dataRowIndex++
     })
@@ -473,13 +508,11 @@ export async function GET(request: NextRequest) {
     
     const totalRow = worksheet.getRow(currentRow)
     totalRow.height = 16
-    totalRow.commit()
     currentRow++
 
 // Row 19: Empty row
     const row19 = worksheet.getRow(19)
     row19.height = 8
-    row19.commit()
 
     // SECTION 4 - Top 5 Vehicles (rows 20-27)
     currentRow = 20
@@ -499,7 +532,6 @@ export async function GET(request: NextRequest) {
     }
     const sectionTitleRow20 = worksheet.getRow(20)
     sectionTitleRow20.height = 18
-    sectionTitleRow20.commit()
     currentRow++
 
     // Row 21: Headers
@@ -606,7 +638,7 @@ export async function GET(request: NextRequest) {
     currentRow++
 
     // Calculate fuel type totals for distribution
-    const fuelTypeTotals: Record<string, any> = fuelLogs.reduce((acc, log) => {
+    const fuelTypeTotals: Record<string, { litros: number, importe: number }> = fuelLogs.reduce((acc, log) => {
       let fuelType = 'Otros'
       let litros = log.gallons
       let importe = log.amount
@@ -629,7 +661,7 @@ export async function GET(request: NextRequest) {
       acc[fuelType].litros += litros
       acc[fuelType].importe += importe
       return acc
-    }, {})
+    }, {} as Record<string, { litros: number, importe: number }>)
 
     // Initialize vehicle consumption
     const vehicleConsumption: Record<string, any> = {}
@@ -779,7 +811,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Row 27: Empty row
-    worksheet.getRow(27).height = 8
+    const row27 = worksheet.getRow(27)
+    row27.height = 8
 
     // SECTION 5 - Fuel Distribution (rows 28-31)
     currentRow = 28
@@ -838,17 +871,22 @@ export async function GET(request: NextRequest) {
     worksheet.getRow(currentRow).height = 16
     currentRow++
 
-    // Data rows 30-31: Fuel distribution data - Show ALL 4 fuel types in correct order
-    const fuelTypeOrder = ['Inf. Diesel (L)', 'Nafta Super (L)', 'Infinia (L)', 'D.Diesel 500 (L)']
+    // Data rows 30-31: Fuel distribution data - Show ALL 4 fuel types explicitly defined
+    const fuelTypes = [
+      { label: 'Inf. Diesel (L)', key: 'infDiesel' },
+      { label: 'Nafta Super (L)', key: 'naftaSuper' },
+      { label: 'Infinia (L)', key: 'infinia' },
+      { label: 'D.Diesel 500 (L)', key: 'dDiesel500' }
+    ]
     
-    for (let i = 0; i < fuelTypeOrder.length; i++) {
+    for (let i = 0; i < fuelTypes.length; i++) {
       const bgColor = i % 2 === 0 ? 'FFFFFFFF' : 'FFF9F9F9'
-      const fuelType = fuelTypeOrder[i]
-      const total = fuelTypeTotals[fuelType] || { litros: 0, importe: 0 }
+      const fuelType = fuelTypes[i]
+      const total = fuelTypeTotals[fuelType.label] || { litros: 0, importe: 0 }
       const porcentajeTotal = totalFacturado > 0 ? (total.importe / totalFacturado) * 100 : 0
       
       worksheet.mergeCells(`A${currentRow}:D${currentRow}`)
-      worksheet.getCell(`A${currentRow}`).value = fuelType
+      worksheet.getCell(`A${currentRow}`).value = fuelType.label
       worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9 }
       worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
       worksheet.getCell(`A${currentRow}`).border = {
@@ -1051,6 +1089,43 @@ export async function GET(request: NextRequest) {
 
     // Set print area to A1:J35 for portrait A4
     worksheet.pageSetup.printArea = 'A1:J35'
+
+    // FIX 2: Disable wrap_text on ALL cells to prevent Excel from overriding row heights
+    const lastRow = Math.max(currentRow, 35) // Ensure we cover all used rows
+    for (let r = 1; r <= lastRow; r++) {
+      const row = worksheet.getRow(r)
+      row.eachCell({ includeEmpty: false }, (cell) => {
+        if (cell.alignment) {
+          cell.alignment = { ...cell.alignment, wrapText: false }
+        } else {
+          cell.alignment = { wrapText: false }
+        }
+      })
+    }
+
+    // Set row heights again AFTER disabling wrapText to ensure they persist
+    for (let i = 1; i <= 50; i++) {
+      const row = worksheet.getRow(i)
+      if (i === 1 || i === 2) {
+        row.height = 20
+      }
+      else if (i === 3 || i === 6 || i === 19 || i === 27) {
+        row.height = 8
+      }
+      else if (i === 4 || i === 5) {
+        row.height = 22
+      }
+      else if ([7, 20, 28].includes(i)) {
+        row.height = 18
+      }
+      else if ([8, 21, 29, 33].includes(i)) {
+        row.height = 16
+      }
+      else {
+        row.height = 14
+      }
+      row.hidden = false
+    }
 
     // Generate buffer
     const buffer = await workbook.xlsx.writeBuffer()
