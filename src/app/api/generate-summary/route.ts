@@ -85,54 +85,50 @@ export async function GET(request: NextRequest) {
     const workbook = new ExcelJS.Workbook()
     const worksheet = workbook.addWorksheet('Resumen Ejecutivo')
 
-    // Set page setup
+    // Set page setup - Portrait A4
     worksheet.pageSetup = {
-      orientation: 'landscape',
-      paperSize: 9, // A4
-      margins: {
-        left: 0.278,
-        right: 0.014,
-        top: 0.75,
-        bottom: 0.75,
-        header: 0.417,
-        footer: 0.417
-      }
+      paperSize: 9,
+      orientation: 'portrait',
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 1,
+      margins: { left: 0.5, right: 0.5, top: 0.5, bottom: 0.5, header: 0, footer: 0 }
     }
 
-    // Set column widths (auto-fit, minimum 12)
+    // Column widths for portrait A4 (10 columns A-J)
     worksheet.columns = [
-      { width: 12 }, // A
-      { width: 12 }, // B
-      { width: 12 }, // C
-      { width: 12 }, // D
-      { width: 12 }, // E
-      { width: 12 }, // F
-      { width: 12 }, // G
-      { width: 12 }, // H
-      { width: 12 }, // I
-      { width: 12 }, // J
-      { width: 12 }, // K
-      { width: 12 }, // L
-      { width: 12 }, // M
-      { width: 12 }, // N
-      { width: 12 }, // O
-      { width: 12 }, // P
-      { width: 12 }, // Q
-      { width: 12 }, // R
-      { width: 12 }, // S
-      { width: 12 }, // T
-      { width: 12 }, // U
-      { width: 12 }, // V
-      { width: 12 }, // W
-      { width: 12 }, // X
-      { width: 12 }, // Y
-      { width: 12 }, // Z
+      { width: 22 }, // A
+      { width: 8 },  // B
+      { width: 10 }, // C
+      { width: 10 }, // D
+      { width: 10 }, // E
+      { width: 10 }, // F
+      { width: 16 }, // G
+      { width: 8 },  // H
+      { width: 18 }, // I
+      { width: 10 }  // J
     ]
 
-    // SECTION 1 - Institutional Header (rows 1-2)
-    worksheet.mergeCells('A1:P1')
+    // Disable gridlines
+    // worksheet.showGridLines = false // Commented out as property doesn't exist
+
+    // Set all row heights at the beginning using customHeight property
+    for (let i = 1; i <= 50; i++) {
+      const row = worksheet.getRow(i)
+      if (i === 1 || i === 2) row.height = 20
+      else if (i === 3 || i === 6 || i === 19 || i === 27) row.height = 8
+      else if (i === 4 || i === 5) row.height = 22
+      else if ([7, 20, 28].includes(i)) row.height = 18
+      else if ([8, 21, 29, 33].includes(i)) row.height = 16
+      else row.height = 14
+      row.hidden = false
+    }
+
+    // SECTION 1 - Institutional Header (rows 1-3)
+    // Row 1: Main title
+    worksheet.mergeCells('A1:J1')
     worksheet.getCell('A1').value = 'MUNICIPALIDAD DE LUJÁN — Subdirección de Patrimonio'
-    worksheet.getCell('A1').font = { name: 'Calibri', size: 12, bold: true }
+    worksheet.getCell('A1').font = { name: 'Calibri', size: 13, bold: true }
     worksheet.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' }
     worksheet.getCell('A1').border = {
       top: { style: 'medium' },
@@ -141,13 +137,14 @@ export async function GET(request: NextRequest) {
       right: { style: 'medium' }
     }
 
+    // Row 2: Subtitle
     const periodLabel = factura 
       ? `Factura N°: ${factura}`
       : startDate && endDate 
         ? `Período: ${startDate} Al ${endDate}`
         : 'Todos los períodos'
 
-    worksheet.mergeCells('A2:P2')
+    worksheet.mergeCells('A2:J2')
     worksheet.getCell('A2').value = `Resumen de Consumo de Combustible — ${periodLabel}`
     worksheet.getCell('A2').font = { name: 'Calibri', size: 11, bold: true }
     worksheet.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' }
@@ -158,9 +155,8 @@ export async function GET(request: NextRequest) {
       right: { style: 'medium' }
     }
 
-    // SECTION 2 - KPI Boxes (rows 4-5) - 4 horizontal boxes
-    let currentRow = 4
-
+    // SECTION 2 - KPI Boxes (rows 4-5) - Individual cells with borders
+    
     // Calculate KPIs
     const totalFacturado = fuelLogs.reduce((sum, log) => sum + log.amount, 0)
     const vehiculosActivos = new Set(fuelLogs.map(log => log.card?.cardNumber)).size
@@ -170,71 +166,63 @@ export async function GET(request: NextRequest) {
 
     console.log('KPIs calculated:', { totalFacturado, vehiculosActivos, totalCargas, totalLitros, precioPromedio })
 
-    // Row 4 - KPI Labels
-worksheet.mergeCells('A4:D4')
-worksheet.getCell('A4').value = 'Total Facturado'
-worksheet.getCell('A4').font = { bold: true, name: 'Calibri', size: 11 }
-worksheet.getCell('A4').alignment = { horizontal: 'center', vertical: 'middle' }
+    // KPI labels - row 4
+    const kpiLabelCells = ['A4', 'D4', 'G4', 'J4']
+    const kpiLabels = ['Total Facturado', 'Vehículos Activos', 'Total de Cargas', 'Precio Prom/Litro']
+    kpiLabelCells.forEach((cellRef, i) => {
+      const cell = worksheet.getCell(cellRef)
+      cell.value = kpiLabels[i]
+      cell.font = { bold: true, name: 'Calibri', size: 9 }
+      cell.alignment = { horizontal: 'center', vertical: 'middle' }
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+      cell.border = { top: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' }, bottom: { style: 'thin' } }
+    })
 
-worksheet.mergeCells('E4:H4')
-worksheet.getCell('E4').value = 'Vehículos Activos'
-worksheet.getCell('E4').font = { bold: true, name: 'Calibri', size: 11 }
-worksheet.getCell('E4').alignment = { horizontal: 'center', vertical: 'middle' }
+    // KPI values - row 5
+    const kpiValueCells = ['A5', 'D5', 'G5', 'J5']
+    const kpiValues = [formatARS(totalFacturado), String(vehiculosActivos), String(totalCargas), formatARS(precioPromedio)]
+    kpiValueCells.forEach((cellRef, i) => {
+      const cell = worksheet.getCell(cellRef)
+      cell.value = kpiValues[i]
+      cell.font = { bold: true, name: 'Calibri', size: 13 }
+      cell.alignment = { horizontal: 'center', vertical: 'middle' }
+      cell.border = { top: { style: 'thin' }, left: { style: 'medium' }, right: { style: 'medium' }, bottom: { style: 'medium' } }
+    })
 
-worksheet.mergeCells('I4:L4')
-worksheet.getCell('I4').value = 'Total de Cargas'
-worksheet.getCell('I4').font = { bold: true, name: 'Calibri', size: 11 }
-worksheet.getCell('I4').alignment = { horizontal: 'center', vertical: 'middle' }
+    // Row 6: Empty row
+    const row6 = worksheet.getRow(6)
+    row6.height = 8
+    row6.commit()
 
-worksheet.mergeCells('M4:P4')
-worksheet.getCell('M4').value = 'Precio Promedio/Litro'
-worksheet.getCell('M4').font = { bold: true, name: 'Calibri', size: 11 }
-worksheet.getCell('M4').alignment = { horizontal: 'center', vertical: 'middle' }
-
-// Row 5 - KPI Values
-worksheet.mergeCells('A5:D5')
-worksheet.getCell('A5').value = formatARS(totalFacturado)
-worksheet.getCell('A5').font = { bold: true, name: 'Calibri', size: 14 }
-worksheet.getCell('A5').alignment = { horizontal: 'center', vertical: 'middle' }
-
-worksheet.mergeCells('E5:H5')
-worksheet.getCell('E5').value = String(vehiculosActivos)
-worksheet.getCell('E5').font = { bold: true, name: 'Calibri', size: 14 }
-worksheet.getCell('E5').alignment = { horizontal: 'center', vertical: 'middle' }
-
-worksheet.mergeCells('I5:L5')
-worksheet.getCell('I5').value = String(totalCargas)
-worksheet.getCell('I5').font = { bold: true, name: 'Calibri', size: 14 }
-worksheet.getCell('I5').alignment = { horizontal: 'center', vertical: 'middle' }
-
-worksheet.mergeCells('M5:P5')
-worksheet.getCell('M5').value = formatARS(precioPromedio)
-worksheet.getCell('M5').font = { bold: true, name: 'Calibri', size: 14 }
-worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
-
-    currentRow = 6 // Row after KPIs
-
-    // SECTION 3 - Consumption by Secretaría (starts at row 8)
-    currentRow++
-    worksheet.mergeCells(`A${currentRow}:H${currentRow}`)
-    worksheet.getCell(`A${currentRow}`).value = 'Consumo por Secretaría'
+    // SECTION 3 - Consumption by Secretaría (rows 7-19)
+    let currentRow = 7
+    
+    // Row 7: Section title
+    worksheet.mergeCells(`A${currentRow}:J${currentRow}`)
+    worksheet.getCell(`A${currentRow}`).value = 'CONSUMO POR SECRETARÍA'
     worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
     worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F3864' } }
+    worksheet.getCell(`A${currentRow}`).font = { ...worksheet.getCell(`A${currentRow}`).font, color: { argb: 'FFFFFFFF' } }
     worksheet.getCell(`A${currentRow}`).border = {
       top: { style: 'medium' },
       bottom: { style: 'medium' },
       left: { style: 'medium' },
       right: { style: 'medium' }
     }
+    const sectionTitleRow7 = worksheet.getRow(7)
+    sectionTitleRow7.height = 18
+    sectionTitleRow7.commit()
     currentRow++
 
-    // Headers for consumption table
+    // Row 8: Headers
     const headers = ['Secretaría', 'Cargas', 'Inf. Diesel (L)', 'Nafta Super (L)', 'Infinia (L)', 'D.Diesel 500 (L)', 'Importe', '% del Total']
     headers.forEach((header, index) => {
       const cell = worksheet.getCell(`${String.fromCharCode(65 + index)}${currentRow}`)
       cell.value = header
-      cell.font = { name: 'Calibri', size: 10, bold: true }
+      cell.font = { name: 'Calibri', size: 9, bold: true }
       cell.alignment = { horizontal: 'center', vertical: 'middle' }
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
       cell.border = {
         top: { style: 'medium' },
         bottom: { style: 'medium' },
@@ -242,6 +230,9 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
         right: { style: 'medium' }
       }
     })
+    const headerRow8 = worksheet.getRow(8)
+    headerRow8.height = 16
+    headerRow8.commit()
     currentRow++
 
     // Group consumption by MainArea
@@ -264,24 +255,31 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
       consumptionByArea[areaName].cargas++
       consumptionByArea[areaName].importe += log.amount
       
-      // Group by fuel type based on description
-      if (log.description?.toLowerCase().includes('diesel') || log.description?.toLowerCase().includes('diesel')) {
-        consumptionByArea[areaName].infDieselL += log.gallons
-      } else if (log.description?.toLowerCase().includes('nafta') || log.description?.toLowerCase().includes('super')) {
-        consumptionByArea[areaName].naftaSuperL += log.gallons
-      } else if (log.description?.toLowerCase().includes('infinia')) {
-        consumptionByArea[areaName].infiniaL += log.gallons
-      } else {
+      // Group by fuel type - Fix fuel classification logic
+      const desc = (log.description || '').toUpperCase()
+      if (desc.includes('D.DIESEL') || desc.includes('DIESEL 500') || desc === 'D.DIESEL 500') {
         consumptionByArea[areaName].diesel500L += log.gallons
+      } else if (desc.includes('INFINIA DIESEL') || (desc.includes('INFINIA') && desc.includes('DIESEL'))) {
+        consumptionByArea[areaName].infDieselL += log.gallons
+      } else if (desc.includes('NAFTA') || desc.includes('SUPER')) {
+        consumptionByArea[areaName].naftaSuperL += log.gallons
+      } else if (desc.includes('INFINIA')) {
+        consumptionByArea[areaName].infiniaL += log.gallons
       }
     })
+    // Display consumption by area with alternating backgrounds
+    let dataRowIndex = 0
     Object.keys(consumptionByArea).forEach(areaName => {
       const area = consumptionByArea[areaName]
       const totalImporte = area.importe
       const porcentajeTotal = totalFacturado > 0 ? (totalImporte / totalFacturado) * 100 : 0
       
+      // Alternating background colors
+      const bgColor = dataRowIndex % 2 === 0 ? 'FFFFFFFF' : 'FFF9F9F9'
+      
       worksheet.getCell(`A${currentRow}`).value = areaName
-      worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10 }
+      worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
       worksheet.getCell(`A${currentRow}`).border = {
         top: { style: 'medium' },
         bottom: { style: 'medium' },
@@ -290,8 +288,9 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
       }
       
       worksheet.getCell(`B${currentRow}`).value = area.cargas.toString()
-      worksheet.getCell(`B${currentRow}`).font = { name: 'Calibri', size: 10 }
+      worksheet.getCell(`B${currentRow}`).font = { name: 'Calibri', size: 9 }
       worksheet.getCell(`B${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`B${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
       worksheet.getCell(`B${currentRow}`).border = {
         top: { style: 'medium' },
         bottom: { style: 'medium' },
@@ -300,8 +299,9 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
       }
       
       worksheet.getCell(`C${currentRow}`).value = area.infDieselL.toFixed(2).replace('.', ',')
-      worksheet.getCell(`C${currentRow}`).font = { name: 'Calibri', size: 10 }
+      worksheet.getCell(`C${currentRow}`).font = { name: 'Calibri', size: 9 }
       worksheet.getCell(`C${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`C${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
       worksheet.getCell(`C${currentRow}`).border = {
         top: { style: 'medium' },
         bottom: { style: 'medium' },
@@ -310,8 +310,9 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
       }
       
       worksheet.getCell(`D${currentRow}`).value = area.naftaSuperL.toFixed(2).replace('.', ',')
-      worksheet.getCell(`D${currentRow}`).font = { name: 'Calibri', size: 10 }
+      worksheet.getCell(`D${currentRow}`).font = { name: 'Calibri', size: 9 }
       worksheet.getCell(`D${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`D${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
       worksheet.getCell(`D${currentRow}`).border = {
         top: { style: 'medium' },
         bottom: { style: 'medium' },
@@ -320,8 +321,9 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
       }
       
       worksheet.getCell(`E${currentRow}`).value = area.infiniaL.toFixed(2).replace('.', ',')
-      worksheet.getCell(`E${currentRow}`).font = { name: 'Calibri', size: 10 }
+      worksheet.getCell(`E${currentRow}`).font = { name: 'Calibri', size: 9 }
       worksheet.getCell(`E${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`E${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
       worksheet.getCell(`E${currentRow}`).border = {
         top: { style: 'medium' },
         bottom: { style: 'medium' },
@@ -330,8 +332,9 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
       }
       
       worksheet.getCell(`F${currentRow}`).value = area.diesel500L.toFixed(2).replace('.', ',')
-      worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 10 }
+      worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 9 }
       worksheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`F${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
       worksheet.getCell(`F${currentRow}`).border = {
         top: { style: 'medium' },
         bottom: { style: 'medium' },
@@ -340,8 +343,9 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
       }
       
       worksheet.getCell(`G${currentRow}`).value = formatARS(totalImporte)
-      worksheet.getCell(`G${currentRow}`).font = { name: 'Calibri', size: 10 }
+      worksheet.getCell(`G${currentRow}`).font = { name: 'Calibri', size: 9 }
       worksheet.getCell(`G${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`G${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
       worksheet.getCell(`G${currentRow}`).border = {
         top: { style: 'medium' },
         bottom: { style: 'medium' },
@@ -350,8 +354,9 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
       }
       
       worksheet.getCell(`H${currentRow}`).value = `${porcentajeTotal.toFixed(1).replace('.', ',')}%`
-      worksheet.getCell(`H${currentRow}`).font = { name: 'Calibri', size: 10 }
+      worksheet.getCell(`H${currentRow}`).font = { name: 'Calibri', size: 9 }
       worksheet.getCell(`H${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`H${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
       worksheet.getCell(`H${currentRow}`).border = {
         top: { style: 'medium' },
         bottom: { style: 'medium' },
@@ -359,21 +364,14 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
         right: { style: 'medium' }
       }
       
+      const dataRow = worksheet.getRow(currentRow)
+      dataRow.height = 14
+      dataRow.commit()
       currentRow++
+      dataRowIndex++
     })
 
-    // TOTAL row
-    worksheet.getCell(`A${currentRow}`).value = 'TOTAL'
-    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
-    worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell(`A${currentRow}`).border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-
-    // Calculate totals for each column
+    // TOTAL row with light gray background
     const totals = Object.keys(consumptionByArea).reduce((acc, areaName) => {
       const area = consumptionByArea[areaName]
       acc.cargas += area.cargas
@@ -385,10 +383,10 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
       return acc
     }, { cargas: 0, infDieselL: 0, naftaSuperL: 0, infiniaL: 0, diesel500L: 0, importe: 0 })
 
-    // TOTAL row - only once
     worksheet.getCell(`A${currentRow}`).value = 'TOTAL'
-    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
     worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }
     worksheet.getCell(`A${currentRow}`).border = {
       top: { style: 'medium' },
       bottom: { style: 'medium' },
@@ -397,8 +395,9 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
     }
 
     worksheet.getCell(`B${currentRow}`).value = totals.cargas.toString()
-    worksheet.getCell(`B${currentRow}`).font = { name: 'Calibri', size: 10 }
+    worksheet.getCell(`B${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
     worksheet.getCell(`B${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`B${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }
     worksheet.getCell(`B${currentRow}`).border = {
       top: { style: 'medium' },
       bottom: { style: 'medium' },
@@ -407,8 +406,9 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
     }
     
     worksheet.getCell(`C${currentRow}`).value = totals.infDieselL.toFixed(2).replace('.', ',')
-    worksheet.getCell(`C${currentRow}`).font = { name: 'Calibri', size: 10 }
+    worksheet.getCell(`C${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
     worksheet.getCell(`C${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`C${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }
     worksheet.getCell(`C${currentRow}`).border = {
       top: { style: 'medium' },
       bottom: { style: 'medium' },
@@ -417,8 +417,9 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
     }
     
     worksheet.getCell(`D${currentRow}`).value = totals.naftaSuperL.toFixed(2).replace('.', ',')
-    worksheet.getCell(`D${currentRow}`).font = { name: 'Calibri', size: 10 }
+    worksheet.getCell(`D${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
     worksheet.getCell(`D${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`D${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }
     worksheet.getCell(`D${currentRow}`).border = {
       top: { style: 'medium' },
       bottom: { style: 'medium' },
@@ -427,8 +428,9 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
     }
     
     worksheet.getCell(`E${currentRow}`).value = totals.infiniaL.toFixed(2).replace('.', ',')
-    worksheet.getCell(`E${currentRow}`).font = { name: 'Calibri', size: 10 }
+    worksheet.getCell(`E${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
     worksheet.getCell(`E${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`E${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }
     worksheet.getCell(`E${currentRow}`).border = {
       top: { style: 'medium' },
       bottom: { style: 'medium' },
@@ -437,8 +439,9 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
     }
     
     worksheet.getCell(`F${currentRow}`).value = totals.diesel500L.toFixed(2).replace('.', ',')
-    worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 10 }
+    worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
     worksheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`F${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }
     worksheet.getCell(`F${currentRow}`).border = {
       top: { style: 'medium' },
       bottom: { style: 'medium' },
@@ -447,8 +450,9 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
     }
     
     worksheet.getCell(`G${currentRow}`).value = formatARS(totals.importe)
-    worksheet.getCell(`G${currentRow}`).font = { name: 'Calibri', size: 10 }
+    worksheet.getCell(`G${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
     worksheet.getCell(`G${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`G${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }
     worksheet.getCell(`G${currentRow}`).border = {
       top: { style: 'medium' },
       bottom: { style: 'medium' },
@@ -457,8 +461,9 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
     }
     
     worksheet.getCell(`H${currentRow}`).value = `${((totals.importe / totalFacturado) * 100).toFixed(1).replace('.', ',')}%`
-    worksheet.getCell(`H${currentRow}`).font = { name: 'Calibri', size: 10 }
+    worksheet.getCell(`H${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
     worksheet.getCell(`H${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`H${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }
     worksheet.getCell(`H${currentRow}`).border = {
       top: { style: 'medium' },
       bottom: { style: 'medium' },
@@ -466,209 +471,156 @@ worksheet.getCell('M5').alignment = { horizontal: 'center', vertical: 'middle' }
       right: { style: 'medium' }
     }
     
+    const totalRow = worksheet.getRow(currentRow)
+    totalRow.height = 16
+    totalRow.commit()
     currentRow++
 
-// SECTION 4 - Top 5 vehicles by consumption (starts after section 3)
-currentRow++ // Leave one empty row
+// Row 19: Empty row
+    const row19 = worksheet.getRow(19)
+    row19.height = 8
+    row19.commit()
 
-worksheet.mergeCells(`A${currentRow}:H${currentRow}`)
-worksheet.getCell(`A${currentRow}`).value = 'Top 5 Vehículos — Mayor Consumo'
-worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
-worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-worksheet.getCell(`A${currentRow}`).border = {
-  top: { style: 'medium' },
-  bottom: { style: 'medium' },
-  left: { style: 'medium' },
-  right: { style: 'medium' }
-}
-currentRow++
+    // SECTION 4 - Top 5 Vehicles (rows 20-27)
+    currentRow = 20
+    
+    // Row 20: Section title
+    worksheet.mergeCells(`A${currentRow}:J${currentRow}`)
+    worksheet.getCell(`A${currentRow}`).value = 'TOP 5 VEHÍCULOS — MAYOR CONSUMO'
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
+    worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F3864' } }
+    worksheet.getCell(`A${currentRow}`).font = { ...worksheet.getCell(`A${currentRow}`).font, color: { argb: 'FFFFFFFF' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+    const sectionTitleRow20 = worksheet.getRow(20)
+    sectionTitleRow20.height = 18
+    sectionTitleRow20.commit()
+    currentRow++
 
-// Headers for top 5 vehicles table
-const top5Headers = ['Dominio', 'Secretaría', 'Dependencia', 'Inf. Diesel (L)', 'Nafta Super (L)', 'Infinia (L)', 'D.Diesel 500 (L)', 'Importe']
-top5Headers.forEach((header, index) => {
-  const cell = worksheet.getCell(`${String.fromCharCode(65 + index)}${currentRow}`)
-  cell.value = header
-  cell.font = { name: 'Calibri', size: 10, bold: true }
-  cell.alignment = { horizontal: 'center', vertical: 'middle' }
-  cell.border = {
-    top: { style: 'medium' },
-    bottom: { style: 'medium' },
-    left: { style: 'medium' },
-    right: { style: 'medium' }
-  }
-})
-currentRow++
+    // Row 21: Headers
+    worksheet.getCell(`A${currentRow}`).value = 'Dominio'
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
 
-    // Initialize vehicle consumption
-    const vehicleConsumption: Record<string, any> = {}
-    fuelLogs.forEach(log => {
-      const dominio = log.dominio || log.card?.cardNumber || 'Sin Dominio'
-      const secretaria = log.card?.area?.name || 'Sin Secretaría'
-      const dependencia = log.card?.subArea?.name || 'Sin Dependencia'
-      
-      if (!vehicleConsumption[dominio]) {
-        vehicleConsumption[dominio] = { 
-          dominio, 
-          secretaria, 
-          dependencia, 
-          infDieselL: 0, 
-          naftaSuperL: 0, 
-          infiniaL: 0, 
-          diesel500L: 0, 
-          importe: 0
-        }
-      }
-      
-      vehicleConsumption[dominio].secretaria = secretaria
-      vehicleConsumption[dominio].dependencia = dependencia
-      vehicleConsumption[dominio].importe += log.amount
-      
-      // Group by fuel type
-      if (log.description?.toLowerCase().includes('diesel') || log.description?.toLowerCase().includes('diesel')) {
-        vehicleConsumption[dominio].infDieselL += log.gallons
-      } else if (log.description?.toLowerCase().includes('nafta') || log.description?.toLowerCase().includes('super')) {
-        vehicleConsumption[dominio].naftaSuperL += log.gallons
-      } else if (log.description?.toLowerCase().includes('infinia')) {
-        vehicleConsumption[dominio].infiniaL += log.gallons
-      } else {
-        vehicleConsumption[dominio].diesel500L += log.gallons
-      }
-    })
+    worksheet.mergeCells(`B${currentRow}:C${currentRow}`)
+    worksheet.getCell(`B${currentRow}`).value = 'Secretaría'
+    worksheet.getCell(`B${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`B${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`B${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`B${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
 
-    // Sort vehicles by total amount and get top 5
-    const top5Vehicles = Object.keys(vehicleConsumption)
-      .sort((a, b) => vehicleConsumption[b].importe - vehicleConsumption[a].importe)
-      .slice(0, 5)
+    worksheet.getCell(`D${currentRow}`).value = 'Diesel L'
+    worksheet.getCell(`D${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`D${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`D${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`D${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
 
-    top5Vehicles.forEach((dominio, index) => {
-      const vehicle = vehicleConsumption[dominio]!
-      worksheet.getCell(`A${currentRow}`).value = vehicle.dominio
-      worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10 }
-      worksheet.getCell(`A${currentRow}`).border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
-      
-      worksheet.getCell(`B${currentRow}`).value = vehicle.secretaria
-      worksheet.getCell(`B${currentRow}`).font = { name: 'Calibri', size: 10 }
-      worksheet.getCell(`B${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-      worksheet.getCell(`B${currentRow}`).border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
-      
-      worksheet.getCell(`C${currentRow}`).value = vehicle.dependencia
-      worksheet.getCell(`C${currentRow}`).font = { name: 'Calibri', size: 10 }
-      worksheet.getCell(`C${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-      worksheet.getCell(`C${currentRow}`).border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
-      
-      worksheet.getCell(`D${currentRow}`).value = vehicle.infDieselL.toFixed(2).replace('.', ',')
-      worksheet.getCell(`D${currentRow}`).font = { name: 'Calibri', size: 10 }
-      worksheet.getCell(`D${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-      worksheet.getCell(`D${currentRow}`).border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
-      
-      worksheet.getCell(`E${currentRow}`).value = vehicle.naftaSuperL.toFixed(2).replace('.', ',')
-      worksheet.getCell(`E${currentRow}`).font = { name: 'Calibri', size: 10 }
-      worksheet.getCell(`E${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-      worksheet.getCell(`E${currentRow}`).border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
-      
-      worksheet.getCell(`F${currentRow}`).value = vehicle.infiniaL.toFixed(2).replace('.', ',')
-      worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 10 }
-      worksheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-      worksheet.getCell(`F${currentRow}`).border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
-      
-      worksheet.getCell(`G${currentRow}`).value = formatARS(vehicle.importe)
-      worksheet.getCell(`G${currentRow}`).font = { name: 'Calibri', size: 10 }
-      worksheet.getCell(`G${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-      worksheet.getCell(`G${currentRow}`).border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
-      
-      worksheet.getCell(`H${currentRow}`).value = (vehicle.infDieselL + vehicle.naftaSuperL + vehicle.infiniaL + vehicle.diesel500L).toFixed(2).replace('.', ',')
-      worksheet.getCell(`H${currentRow}`).font = { name: 'Calibri', size: 10 }
-      worksheet.getCell(`H${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-      worksheet.getCell(`H${currentRow}`).border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
-      
-      currentRow++
-    })
+    worksheet.getCell(`E${currentRow}`).value = 'Nafta L'
+    worksheet.getCell(`E${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`E${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`E${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`E${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
 
-    currentRow++ // Leave one empty row
+    worksheet.getCell(`F${currentRow}`).value = 'Infinia L'
+    worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`F${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`F${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
 
-    // SECTION 5 - Distribution by fuel type (same row as section 4, to the right)
-    worksheet.mergeCells(`J${currentRow}:M${currentRow}`)
-    worksheet.getCell(`J${currentRow}`).value = 'Distribución por Combustible'
-    worksheet.getCell(`J${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
+    worksheet.getCell(`G${currentRow}`).value = 'D.Diesel 500 L'
+    worksheet.getCell(`G${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`G${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`G${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`G${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.getCell(`H${currentRow}`).value = 'Total L'
+    worksheet.getCell(`H${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`H${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`H${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`H${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.getCell(`I${currentRow}`).value = 'Importe'
+    worksheet.getCell(`I${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`I${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`I${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`I${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.getCell(`J${currentRow}`).value = '% del Total'
+    worksheet.getCell(`J${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
     worksheet.getCell(`J${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`J${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
     worksheet.getCell(`J${currentRow}`).border = {
       top: { style: 'medium' },
       bottom: { style: 'medium' },
       left: { style: 'medium' },
       right: { style: 'medium' }
     }
+
+    worksheet.getRow(currentRow).height = 16
     currentRow++
 
-    // Headers for fuel distribution table
-    const distHeaders = ['Combustible', 'Litros', 'Importe', '% del Total']
-    distHeaders.forEach((header, index) => {
-      const cell = worksheet.getCell(`${String.fromCharCode(74 + index)}${currentRow}`) // J, K, L, M
-      cell.value = header
-      cell.font = { name: 'Calibri', size: 10, bold: true }
-      cell.alignment = { horizontal: 'center', vertical: 'middle' }
-      cell.border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
-    })
-    currentRow++
-
-    // Calculate totals by fuel type
+    // Calculate fuel type totals for distribution
     const fuelTypeTotals: Record<string, any> = fuelLogs.reduce((acc, log) => {
       let fuelType = 'Otros'
       let litros = log.gallons
       let importe = log.amount
       
-      if (log.description?.toLowerCase().includes('diesel') || log.description?.toLowerCase().includes('diesel')) {
-        fuelType = 'Inf. Diesel (L)'
-      } else if (log.description?.toLowerCase().includes('nafta') || log.description?.toLowerCase().includes('super')) {
-        fuelType = 'Nafta Super (L)'
-      } else if (log.description?.toLowerCase().includes('infinia')) {
-        fuelType = 'Infinia (L)'
-      } else if (log.description?.toLowerCase().includes('500')) {
+      // Fix fuel classification logic
+      const desc = (log.description || '').toUpperCase()
+      if (desc.includes('D.DIESEL') || desc.includes('DIESEL 500') || desc === 'D.DIESEL 500') {
         fuelType = 'D.Diesel 500 (L)'
+      } else if (desc.includes('INFINIA DIESEL') || (desc.includes('INFINIA') && desc.includes('DIESEL'))) {
+        fuelType = 'Inf. Diesel (L)'
+      } else if (desc.includes('NAFTA') || desc.includes('SUPER')) {
+        fuelType = 'Nafta Super (L)'
+      } else if (desc.includes('INFINIA')) {
+        fuelType = 'Infinia (L)'
       }
       
       if (!acc[fuelType]) {
@@ -679,14 +631,142 @@ currentRow++
       return acc
     }, {})
 
-    // Display totals by fuel type
-    Object.keys(fuelTypeTotals).forEach(fuelType => {
-      const total = fuelTypeTotals[fuelType]
-      const porcentajeTotal = totalFacturado > 0 ? (total.importe / totalFacturado) * 100 : 0
+    // Initialize vehicle consumption
+    const vehicleConsumption: Record<string, any> = {}
+    fuelLogs.forEach(log => {
+      const dominio = log.dominio || log.card?.cardNumber || 'Sin Dominio'
+      const secretaria = log.card?.area?.name || 'Sin Secretaría'
       
-      worksheet.getCell(`J${currentRow}`).value = fuelType
-      worksheet.getCell(`J${currentRow}`).font = { name: 'Calibri', size: 10 }
+      if (!vehicleConsumption[dominio]) {
+        vehicleConsumption[dominio] = { 
+          dominio, 
+          secretaria, 
+          infDieselL: 0, 
+          naftaSuperL: 0, 
+          infiniaL: 0, 
+          diesel500L: 0, 
+          importe: 0
+        }
+      }
+      
+      vehicleConsumption[dominio].secretaria = secretaria
+      vehicleConsumption[dominio].importe += log.amount
+      
+      // Group by fuel type - Fix fuel classification logic
+      const desc = (log.description || '').toUpperCase()
+      if (desc.includes('D.DIESEL') || desc.includes('DIESEL 500') || desc === 'D.DIESEL 500') {
+        vehicleConsumption[dominio].diesel500L += log.gallons
+      } else if (desc.includes('INFINIA DIESEL') || (desc.includes('INFINIA') && desc.includes('DIESEL'))) {
+        vehicleConsumption[dominio].infDieselL += log.gallons
+      } else if (desc.includes('NAFTA') || desc.includes('SUPER')) {
+        vehicleConsumption[dominio].naftaSuperL += log.gallons
+      } else if (desc.includes('INFINIA')) {
+        vehicleConsumption[dominio].infiniaL += log.gallons
+      }
+    })
+
+    // Sort vehicles by total amount and get top 5
+    const top5Vehicles = Object.keys(vehicleConsumption)
+      .sort((a, b) => vehicleConsumption[b].importe - vehicleConsumption[a].importe)
+      .slice(0, 5)
+
+    // Data rows 22-26 (Top 5 vehicles)
+    for (let i = 0; i < 5 && currentRow <= 26; i++) {
+      const bgColor = i % 2 === 0 ? 'FFFFFFFF' : 'FFF9F9F9'
+      const vehicle = vehicleConsumption[top5Vehicles[i]]
+      const totalLitros = vehicle.infDieselL + vehicle.naftaSuperL + vehicle.infiniaL + vehicle.diesel500L
+      
+      worksheet.getCell(`A${currentRow}`).value = vehicle.dominio
+      worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`A${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+      
+      worksheet.mergeCells(`B${currentRow}:C${currentRow}`)
+      worksheet.getCell(`B${currentRow}`).value = vehicle.secretaria
+      worksheet.getCell(`B${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`B${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`B${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+      
+      worksheet.getCell(`D${currentRow}`).value = vehicle.infDieselL.toFixed(2).replace('.', ',')
+      worksheet.getCell(`D${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`D${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`D${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`D${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+      
+      worksheet.getCell(`E${currentRow}`).value = vehicle.naftaSuperL.toFixed(2).replace('.', ',')
+      worksheet.getCell(`E${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`E${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`E${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`E${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+      
+      worksheet.getCell(`F${currentRow}`).value = vehicle.infiniaL.toFixed(2).replace('.', ',')
+      worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`F${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`F${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+      
+      worksheet.getCell(`G${currentRow}`).value = vehicle.diesel500L.toFixed(2).replace('.', ',')
+      worksheet.getCell(`G${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`G${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`G${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`G${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+      
+      worksheet.getCell(`H${currentRow}`).value = totalLitros.toFixed(2).replace('.', ',')
+      worksheet.getCell(`H${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`H${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`H${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`H${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+      
+      worksheet.getCell(`I${currentRow}`).value = formatARS(vehicle.importe)
+      worksheet.getCell(`I${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`I${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`I${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`I${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+      
+      worksheet.getCell(`J${currentRow}`).value = `${((vehicle.importe / totalFacturado) * 100).toFixed(1).replace('.', ',')}%`
+      worksheet.getCell(`J${currentRow}`).font = { name: 'Calibri', size: 9 }
       worksheet.getCell(`J${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`J${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
       worksheet.getCell(`J${currentRow}`).border = {
         top: { style: 'medium' },
         bottom: { style: 'medium' },
@@ -694,52 +774,187 @@ currentRow++
         right: { style: 'medium' }
       }
       
-      worksheet.getCell(`K${currentRow}`).value = total.litros.toFixed(2).replace('.', ',')
-      worksheet.getCell(`K${currentRow}`).font = { name: 'Calibri', size: 10 }
-      worksheet.getCell(`K${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-      worksheet.getCell(`K${currentRow}`).border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
-      
-      worksheet.getCell(`L${currentRow}`).value = formatARS(total.importe)
-      worksheet.getCell(`L${currentRow}`).font = { name: 'Calibri', size: 10 }
-      worksheet.getCell(`L${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-      worksheet.getCell(`L${currentRow}`).border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
-      
-      worksheet.getCell(`M${currentRow}`).value = `${porcentajeTotal.toFixed(1).replace('.', ',')}%`
-      worksheet.getCell(`M${currentRow}`).font = { name: 'Calibri', size: 10 }
-      worksheet.getCell(`M${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-      worksheet.getCell(`M${currentRow}`).border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
-      
+      worksheet.getRow(currentRow).height = 14
       currentRow++
-    })
+    }
 
-    currentRow++ // Leave one empty row
+    // Row 27: Empty row
+    worksheet.getRow(27).height = 8
 
-    // SECTION 6 - Automatic alerts (last section)
-    worksheet.mergeCells(`A${currentRow}:H${currentRow}`)
-    worksheet.getCell(`A${currentRow}`).value = 'Alertas Automáticas'
+    // SECTION 5 - Fuel Distribution (rows 28-31)
+    currentRow = 28
+    
+    // Row 28: Section title
+    worksheet.mergeCells(`A${currentRow}:J${currentRow}`)
+    worksheet.getCell(`A${currentRow}`).value = 'DISTRIBUCIÓN POR COMBUSTIBLE'
     worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
     worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F3864' } }
+    worksheet.getCell(`A${currentRow}`).font = { ...worksheet.getCell(`A${currentRow}`).font, color: { argb: 'FFFFFFFF' } }
     worksheet.getCell(`A${currentRow}`).border = {
       top: { style: 'medium' },
       bottom: { style: 'medium' },
       left: { style: 'medium' },
       right: { style: 'medium' }
     }
+    worksheet.getRow(currentRow).height = 18
+    currentRow++
+
+    // Row 29: Headers
+    worksheet.mergeCells(`A${currentRow}:D${currentRow}`)
+    worksheet.getCell(`A${currentRow}`).value = 'Combustible'
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.getCell(`E${currentRow}`).value = 'Litros'
+    worksheet.getCell(`E${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`E${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`E${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`E${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.getCell(`F${currentRow}`).value = '% del Total'
+    worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`F${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`F${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.getRow(currentRow).height = 16
+    currentRow++
+
+    // Data rows 30-31: Fuel distribution data - Show ALL 4 fuel types in correct order
+    const fuelTypeOrder = ['Inf. Diesel (L)', 'Nafta Super (L)', 'Infinia (L)', 'D.Diesel 500 (L)']
+    
+    for (let i = 0; i < fuelTypeOrder.length; i++) {
+      const bgColor = i % 2 === 0 ? 'FFFFFFFF' : 'FFF9F9F9'
+      const fuelType = fuelTypeOrder[i]
+      const total = fuelTypeTotals[fuelType] || { litros: 0, importe: 0 }
+      const porcentajeTotal = totalFacturado > 0 ? (total.importe / totalFacturado) * 100 : 0
+      
+      worksheet.mergeCells(`A${currentRow}:D${currentRow}`)
+      worksheet.getCell(`A${currentRow}`).value = fuelType
+      worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`A${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+      
+      worksheet.getCell(`E${currentRow}`).value = total.litros.toFixed(2).replace('.', ',')
+      worksheet.getCell(`E${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`E${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`E${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`E${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+      
+      worksheet.getCell(`F${currentRow}`).value = `${porcentajeTotal.toFixed(1).replace('.', ',')}%`
+      worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`F${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`F${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+      
+      const fuelDataRow = worksheet.getRow(currentRow)
+      fuelDataRow.height = 14
+      fuelDataRow.hidden = false
+      currentRow++
+    }
+
+    // SECTION 6 - Alerts section (rows 32+)
+    // Row 32: Empty row if needed
+    if (currentRow < 32) {
+      worksheet.getRow(currentRow).height = 8
+      currentRow = 32
+    }
+    
+    // Row 32: Section title
+    worksheet.mergeCells(`A${currentRow}:J${currentRow}`)
+    worksheet.getCell(`A${currentRow}`).value = 'ALERTAS AUTOMÁTICAS'
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
+    worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F3864' } }
+    worksheet.getCell(`A${currentRow}`).font = { ...worksheet.getCell(`A${currentRow}`).font, color: { argb: 'FFFFFFFF' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+    worksheet.getRow(currentRow).height = 18
+    currentRow++
+
+    // Row 33: Headers
+    worksheet.getCell(`A${currentRow}`).value = 'Vehículo'
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`B${currentRow}:C${currentRow}`)
+    worksheet.getCell(`B${currentRow}`).value = 'Secretaría'
+    worksheet.getCell(`B${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`B${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`B${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`B${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.getCell(`D${currentRow}`).value = 'Litros'
+    worksheet.getCell(`D${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`D${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`D${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`D${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.getCell(`E${currentRow}`).value = 'vs.Promedio'
+    worksheet.getCell(`E${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`E${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`E${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`E${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.getRow(currentRow).height = 16
     currentRow++
 
     // Generate alerts
@@ -765,51 +980,15 @@ currentRow++
       .slice(0, 5)
 
     if (highConsumptionVehicles.length > 0) {
-      // Add table header (only once)
-      currentRow++
-      worksheet.getCell(`A${currentRow}`).value = 'Vehículo'
-      worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
-      worksheet.getCell(`A${currentRow}`).border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
-      
-      worksheet.getCell(`B${currentRow}`).value = 'Secretaría'
-      worksheet.getCell(`B${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
-      worksheet.getCell(`B${currentRow}`).border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
-      
-      worksheet.getCell(`C${currentRow}`).value = 'Litros'
-      worksheet.getCell(`C${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
-      worksheet.getCell(`C${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-      worksheet.getCell(`C${currentRow}`).border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
-      
-      worksheet.getCell(`D${currentRow}`).value = 'vs. Promedio'
-      worksheet.getCell(`D${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
-      worksheet.getCell(`D${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-      worksheet.getCell(`D${currentRow}`).border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
-
       // Add top 5 high consumption vehicles
-      highConsumptionVehicles.forEach(vehicle => {
-        currentRow++
+      highConsumptionVehicles.forEach((vehicle, index) => {
+        if (currentRow > 35) return // Don't exceed row 35
+        
+        const bgColor = index % 2 === 0 ? 'FFFFFFFF' : 'FFF9F9F9'
+        
         worksheet.getCell(`A${currentRow}`).value = vehicle.dominio
-        worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10 }
+        worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9 }
+        worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
         worksheet.getCell(`A${currentRow}`).border = {
           top: { style: 'medium' },
           bottom: { style: 'medium' },
@@ -817,8 +996,10 @@ currentRow++
           right: { style: 'medium' }
         }
         
+        worksheet.mergeCells(`B${currentRow}:C${currentRow}`)
         worksheet.getCell(`B${currentRow}`).value = vehicle.secretaria
-        worksheet.getCell(`B${currentRow}`).font = { name: 'Calibri', size: 10 }
+        worksheet.getCell(`B${currentRow}`).font = { name: 'Calibri', size: 9 }
+        worksheet.getCell(`B${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
         worksheet.getCell(`B${currentRow}`).border = {
           top: { style: 'medium' },
           bottom: { style: 'medium' },
@@ -826,143 +1007,50 @@ currentRow++
           right: { style: 'medium' }
         }
         
-        worksheet.getCell(`C${currentRow}`).value = vehicle.litros.toFixed(2).replace('.', ',')
-        worksheet.getCell(`C${currentRow}`).font = { name: 'Calibri', size: 10 }
-        worksheet.getCell(`C${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-        worksheet.getCell(`C${currentRow}`).border = {
-          top: { style: 'medium' },
-          bottom: { style: 'medium' },
-          left: { style: 'medium' },
-          right: { style: 'medium' }
-        }
-        
-        worksheet.getCell(`D${currentRow}`).value = `+${((vehicle.litros / averageConsumptionPerVehicle - 1) * 100).toFixed(1).replace('.', ',')}%`
-        worksheet.getCell(`D${currentRow}`).font = { name: 'Calibri', size: 10 }
+        worksheet.getCell(`D${currentRow}`).value = vehicle.litros.toFixed(2).replace('.', ',')
+        worksheet.getCell(`D${currentRow}`).font = { name: 'Calibri', size: 9 }
         worksheet.getCell(`D${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+        worksheet.getCell(`D${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
         worksheet.getCell(`D${currentRow}`).border = {
           top: { style: 'medium' },
           bottom: { style: 'medium' },
           left: { style: 'medium' },
           right: { style: 'medium' }
         }
-      })
-
-      // Add note if more vehicles exceed threshold
-      const totalHighConsumption = Object.keys(vehicleConsumption)
-        .map(dominio => {
-          const vehicle = vehicleConsumption[dominio]
-          if (!vehicle) return false
-          const vehicleLitros = vehicle.infDieselL + vehicle.naftaSuperL + vehicle.infiniaL + vehicle.diesel500L
-          return vehicleLitros > averageConsumptionPerVehicle * 1.5
-        })
-        .filter(v => v).length
-
-      if (totalHighConsumption > 5) {
-        currentRow++
-        worksheet.getCell(`A${currentRow}`).value = `y ${totalHighConsumption - 5} vehículos más con consumo elevado`
-        worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9, italic: true }
-        worksheet.getCell(`A${currentRow}`).border = {
+        
+        worksheet.getCell(`E${currentRow}`).value = `+${((vehicle.litros / averageConsumptionPerVehicle - 1) * 100).toFixed(1).replace('.', ',')}%`
+        worksheet.getCell(`E${currentRow}`).font = { name: 'Calibri', size: 9 }
+        worksheet.getCell(`E${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+        worksheet.getCell(`E${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+        worksheet.getCell(`E${currentRow}`).border = {
           top: { style: 'medium' },
           bottom: { style: 'medium' },
           left: { style: 'medium' },
           right: { style: 'medium' }
         }
-      }
+        
+        worksheet.getRow(currentRow).height = 14
+        currentRow++
+      })
     } else {
-      currentRow++
+      // No alerts row
+      worksheet.mergeCells(`A${currentRow}:J${currentRow}`)
       worksheet.getCell(`A${currentRow}`).value = '✅ Sin alertas de consumo elevado'
-      worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10 }
+      worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
       worksheet.getCell(`A${currentRow}`).border = {
         top: { style: 'medium' },
         bottom: { style: 'medium' },
         left: { style: 'medium' },
         right: { style: 'medium' }
       }
-    }
-
-    // Alert 2: Areas with high spending (> 40% of total)
-    const highSpendingAreas = Object.keys(consumptionByArea)
-      .filter(areaName => {
-        const area = consumptionByArea[areaName]
-        const porcentajeTotal = (area.importe / totalFacturado) * 100
-        return porcentajeTotal > 40
-      })
-
-    if (highSpendingAreas.length > 0) {
+      worksheet.getRow(currentRow).height = 14
       currentRow++
-      highSpendingAreas.forEach(areaName => {
-        const area = consumptionByArea[areaName]
-        const porcentajeTotal = (area.importe / totalFacturado) * 100
-        worksheet.getCell(`A${currentRow}`).value = `🟢 ${areaName}: ${porcentajeTotal.toFixed(1).replace('.', ',')}% del gasto total (${formatARS(area.importe)})`
-        worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10 }
-        worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'left', vertical: 'middle' }
-        worksheet.getCell(`A${currentRow}`).border = {
-          top: { style: 'medium' },
-          bottom: { style: 'medium' },
-          left: { style: 'medium' },
-          right: { style: 'medium' }
-        }
-        currentRow++
-      })
     }
 
-    // Alert 3: Informational
-    const totalVehicles = Object.keys(vehicleConsumption).length
-    const avgPricePerLiter = totalLitros > 0 ? totalFacturado / totalLitros : 0
-    currentRow++
-    worksheet.getCell(`A${currentRow}`).value = `🔵 ${totalVehicles} vehículos activos este período | Precio promedio por litro: ${formatARS(avgPricePerLiter)}`
-    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10 }
-    worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'left', vertical: 'middle' }
-    worksheet.getCell(`A${currentRow}`).border = {
-      top: { style: 'medium' },
-      bottom: { style: 'medium' },
-      left: { style: 'medium' },
-      right: { style: 'medium' }
-    }
-
-    // Alert 4: Fuel type change alerts
-    const fuelTypeAlertsResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/alerts/fuel-type`)
-    const fuelTypeAlerts = fuelTypeAlertsResponse.ok ? await fuelTypeAlertsResponse.json() : []
-    
-    if (fuelTypeAlerts.length > 0) {
-      currentRow++
-      const allSuspiciousLoads = fuelTypeAlerts.flatMap(alert => 
-        alert.suspiciousLoads.map(load => ({
-          dominio: alert.dominio,
-          secretaria: alert.mainArea,
-          primaryGroup: alert.primaryGroup,
-          ...load
-        }))
-      )
-      
-      // Show maximum 5 alerts
-      const topAlerts = allSuspiciousLoads.slice(0, 5)
-      
-      topAlerts.forEach((alert, index) => {
-        currentRow++
-        worksheet.getCell(`A${currentRow}`).value = `🔴 Cambio de combustible sospechoso: ${alert.dominio} (${alert.secretaria}) cargó ${alert.product} siendo un vehículo de ${alert.primaryGroup === 'nafta' ? 'nafta' : 'gasoil'}`
-        worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10 }
-        worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'left', vertical: 'middle' }
-        worksheet.getCell(`A${currentRow}`).border = {
-          top: { style: 'medium' },
-          bottom: { style: 'medium' },
-          left: { style: 'medium' },
-          right: { style: 'medium' }
-        }
-      })
-      
-      if (allSuspiciousLoads.length > 5) {
-        currentRow++
-        worksheet.getCell(`A${currentRow}`).value = `y ${allSuspiciousLoads.length - 5} cambios sospechosos más`
-        worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9, italic: true }
-        worksheet.getCell(`A${currentRow}`).border = {
-          top: { style: 'medium' },
-          bottom: { style: 'medium' },
-          left: { style: 'medium' },
-          right: { style: 'medium' }
-        }
-      }
-    }
+    // Set print area to A1:J35 for portrait A4
+    worksheet.pageSetup.printArea = 'A1:J35'
 
     // Generate buffer
     const buffer = await workbook.xlsx.writeBuffer()
