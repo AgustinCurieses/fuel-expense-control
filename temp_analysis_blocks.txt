@@ -1,0 +1,439 @@
+// BLOCK 1 - "VARIACIÓN VS. PERÍODO ANTERIOR" table
+    // Row 34: Headers
+    worksheet.getCell(`A${currentRow}`).value = 'Secretaría'
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'left', vertical: 'middle' }
+    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`B${currentRow}:C${currentRow}`)
+    worksheet.getCell(`B${currentRow}`).value = 'Factura Ant.'
+    worksheet.getCell(`B${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`B${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`B${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`B${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`D${currentRow}:E${currentRow}`)
+    worksheet.getCell(`D${currentRow}`).value = 'Factura Act.'
+    worksheet.getCell(`D${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`D${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`D${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`D${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`F${currentRow}:G${currentRow}`)
+    worksheet.getCell(`F${currentRow}`).value = 'Δ Importe'
+    worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`F${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`F${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`H${currentRow}:I${currentRow}`)
+    worksheet.getCell(`H${currentRow}`).value = 'Δ %'
+    worksheet.getCell(`H${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`H${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`H${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`H${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.getCell(`J${currentRow}`).value = 'Tendencia'
+    worksheet.getCell(`J${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`J${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } }
+    worksheet.getCell(`J${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+    worksheet.getRow(currentRow).height = 16
+    currentRow++
+
+    // Data rows - only include areas that appear in CURRENT factura
+    let comparisonRowIndex = 0
+    Object.keys(consumptionByArea).forEach(areaName => {
+      const currentArea = consumptionByArea[areaName]
+      const previousArea = previousByArea.find(p => p.mainAreaId === currentArea.mainAreaId)
+      
+      const currentTotal = currentArea.importe || 0
+      const previousTotal = previousArea?.totalCost || 0
+      const difference = currentTotal - previousTotal
+      const percentageChange = previousTotal > 0 ? (difference / previousTotal) * 100 : 0
+      
+      // Alternating background colors
+      const bgColor = comparisonRowIndex % 2 === 0 ? 'FFFFFFFF' : 'FFF9F9F9'
+      
+      worksheet.getCell(`A${currentRow}`).value = areaName
+      worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'left', vertical: 'middle' }
+      worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`A${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+
+      worksheet.mergeCells(`B${currentRow}:C${currentRow}`)
+      worksheet.getCell(`B${currentRow}`).value = previousFactura ? formatARSKPI(previousTotal) : 'Sin dato anterior'
+      worksheet.getCell(`B${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`B${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`B${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`B${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+
+      worksheet.mergeCells(`D${currentRow}:E${currentRow}`)
+      worksheet.getCell(`D${currentRow}`).value = formatARSKPI(currentTotal)
+      worksheet.getCell(`D${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`D${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`D${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`D${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+
+      worksheet.mergeCells(`F${currentRow}:G${currentRow}`)
+      worksheet.getCell(`F${currentRow}`).value = formatARSKPI(difference)
+      worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`F${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`F${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+
+      worksheet.mergeCells(`H${currentRow}:I${currentRow}`)
+      worksheet.getCell(`H${currentRow}`).value = previousTotal > 0 ? `${percentageChange >= 0 ? '+' : '-'}${percentageChange.toFixed(1).replace('.', ',')}%` : 'N/A'
+      worksheet.getCell(`H${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`H${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`H${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`H${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+
+      worksheet.getCell(`J${currentRow}`).value = difference > 0 ? '▲' : difference < 0 ? '▼' : '='
+      worksheet.getCell(`J${currentRow}`).font = { name: 'Calibri', size: 9 }
+      worksheet.getCell(`J${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell(`J${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
+      worksheet.getCell(`J${currentRow}`).border = {
+        top: { style: 'medium' },
+        bottom: { style: 'medium' },
+        left: { style: 'medium' },
+        right: { style: 'medium' }
+      }
+      
+      const dataRow = worksheet.getRow(currentRow)
+      dataRow.height = 14
+      currentRow++
+      comparisonRowIndex++
+    })
+
+    // TOTAL row
+    const currentTotalAmount = Object.values(consumptionByArea).reduce((sum, area) => sum + (area.importe || 0), 0)
+    const previousTotalAmount = previousByArea.reduce((sum, area) => sum + area.totalCost, 0)
+    const totalDifference = currentTotalAmount - previousTotalAmount
+    const totalPercentageChange = previousTotalAmount > 0 ? (totalDifference / previousTotalAmount) * 100 : 0
+
+    worksheet.mergeCells(`A${currentRow}:J${currentRow}`)
+    worksheet.getCell(`A${currentRow}`).value = 'TOTAL'
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`B${currentRow}:C${currentRow}`)
+    worksheet.getCell(`B${currentRow}`).value = previousFactura ? formatARSKPI(previousTotalAmount) : 'Sin dato anterior'
+    worksheet.getCell(`B${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`B${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`B${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }
+    worksheet.getCell(`B${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`D${currentRow}:E${currentRow}`)
+    worksheet.getCell(`D${currentRow}`).value = formatARSKPI(currentTotalAmount)
+    worksheet.getCell(`D${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`D${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`D${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }
+    worksheet.getCell(`D${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`F${currentRow}:G${currentRow}`)
+    worksheet.getCell(`F${currentRow}`).value = formatARSKPI(totalDifference)
+    worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`F${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }
+    worksheet.getCell(`F${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`H${currentRow}:I${currentRow}`)
+    worksheet.getCell(`H${currentRow}`).value = previousTotalAmount > 0 ? `${totalPercentageChange >= 0 ? '+' : '-'}${totalPercentageChange.toFixed(1).replace('.', ',')}%` : 'N/A'
+    worksheet.getCell(`H${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`H${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`H${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }
+    worksheet.getCell(`H${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.getCell(`J${currentRow}`).value = totalDifference > 0 ? '▲' : totalDifference < 0 ? '▼' : '='
+    worksheet.getCell(`J${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`J${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`J${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }
+    worksheet.getCell(`J${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+    worksheet.getRow(currentRow).height = 16
+    currentRow++
+
+    // BLOCK 2 - "EVOLUCIÓN DEL PRECIO POR LITRO" (single info row)
+    // Row 36: Empty spacer
+    worksheet.getRow(currentRow).height = 8
+    currentRow++
+
+    // Row 37: Section title
+    worksheet.mergeCells(`A${currentRow}:J${currentRow}`)
+    worksheet.getCell(`A${currentRow}`).value = 'EVOLUCIÓN DEL PRECIO POR LITRO'
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
+    worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F3864' } }
+    worksheet.getCell(`A${currentRow}`).font = { ...worksheet.getCell(`A${currentRow}`).font, color: { argb: 'FFFFFFFF' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+    worksheet.getRow(currentRow).height = 18
+    currentRow++
+
+    // Row 38: Data row
+    const currentPrecioPromedio = precioPromedio
+    let previousPrecioPromedio = 0
+    if (previousFactura) {
+      const previousPeriodTotals = await prisma.fuelLog.aggregate({
+        where: { factura: previousFactura, status: 'IMPORTED' },
+        _sum: { totalCost: true, gallons: true }
+      })
+      previousPrecioPromedio = previousPeriodTotals._sum.totalCost && previousPeriodTotals._sum.gallons > 0 
+        ? previousPeriodTotals._sum.totalCost / previousPeriodTotals._sum.gallons 
+        : 0
+    }
+    const precioVariation = currentPrecioPromedio - previousPrecioPromedio
+    const precioPercentageChange = previousPrecioPromedio > 0 ? (precioVariation / previousPrecioPromedio) * 100 : 0
+
+    worksheet.mergeCells(`A${currentRow}:B${currentRow}`)
+    worksheet.getCell(`A${currentRow}`).value = 'Precio actual:'
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
+    worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`C${currentRow}:E${currentRow}`)
+    worksheet.getCell(`C${currentRow}`).value = 'Precio anterior:'
+    worksheet.getCell(`C${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
+    worksheet.getCell(`C${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`C${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell(`C${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`F${currentRow}:H${currentRow}`)
+    worksheet.getCell(`F${currentRow}`).value = 'Variación:'
+    worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
+    worksheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`F${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell(`F${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`I${currentRow}:J${currentRow}`)
+    worksheet.getCell(`I${currentRow}`).value = previousFactura ? `${precioPercentageChange >= 0 ? '+' : '-'}${precioPercentageChange.toFixed(1).replace('.', ',')}%` : 'Sin dato anterior'
+    worksheet.getCell(`I${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
+    worksheet.getCell(`I${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`I${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell(`I${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+    worksheet.getRow(currentRow).height = 22
+    currentRow++
+
+    // BLOCK 3 - "CONCENTRACIÓN DEL GASTO" (single info row)
+    // Row 39: Empty spacer
+    worksheet.getRow(currentRow).height = 8
+    currentRow++
+
+    // Row 40: Section title
+    worksheet.mergeCells(`A${currentRow}:J${currentRow}`)
+    worksheet.getCell(`A${currentRow}`).value = 'CONCENTRACIÓN DEL GASTO'
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
+    worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F3864' } }
+    worksheet.getCell(`A${currentRow}`).font = { ...worksheet.getCell(`A${currentRow}`).font, color: { argb: 'FFFFFFFF' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+    worksheet.getRow(currentRow).height = 18
+    currentRow++
+
+    // Row 41: Data row
+    const currentTop3Total = Object.values(consumptionByArea)
+      .sort((a, b) => (b.importe || 0) - (a.importe || 0))
+      .slice(0, 3)
+      .reduce((sum, area) => sum + (area.importe || 0), 0)
+    
+    let previousTop3Total = 0
+    let previousConcentration = 0
+    if (previousFactura) {
+      const previousAreasSorted = previousByArea.sort((a, b) => b.totalCost - a.totalCost)
+      previousTop3Total = previousAreasSorted.slice(0, 3).reduce((sum, area) => sum + area.totalCost, 0)
+      previousConcentration = previousTotalAmount > 0 ? (previousTop3Total / previousTotalAmount) * 100 : 0
+    }
+    
+    const currentConcentration = currentTotalAmount > 0 ? (currentTop3Total / currentTotalAmount) * 100 : 0
+    const concentrationVariation = currentConcentration - previousConcentration
+
+    worksheet.mergeCells(`A${currentRow}:B${currentRow}`)
+    worksheet.getCell(`A${currentRow}`).value = 'Top 3 actual:'
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
+    worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`C${currentRow}:E${currentRow}`)
+    worksheet.getCell(`C${currentRow}`).value = `${currentConcentration.toFixed(1).replace('.', ',')}% del gasto total`
+    worksheet.getCell(`C${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
+    worksheet.getCell(`C${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`C${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell(`C${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`F${currentRow}:H${currentRow}`)
+    worksheet.getCell(`F${currentRow}`).value = 'Top 3 anterior:'
+    worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
+    worksheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`F${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell(`F${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`G${currentRow}:J${currentRow}`)
+    worksheet.getCell(`G${currentRow}`).value = previousFactura ? `${previousConcentration.toFixed(1).replace('.', ',')}% del gasto total` : 'Sin dato anterior'
+    worksheet.getCell(`G${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
+    worksheet.getCell(`G${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`G${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell(`G${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`A${currentRow}:F${currentRow}`)
+    worksheet.getCell(`A${currentRow}`).value = 'Δ concentración:'
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
+    worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    worksheet.mergeCells(`G${currentRow}:J${currentRow}`)
+    worksheet.getCell(`G${currentRow}`).value = previousFactura ? `${concentrationVariation >= 0 ? '+' : '-'}${concentrationVariation.toFixed(1).replace('.', ',')} puntos porcentuales` : 'Sin dato anterior'
+    worksheet.getCell(`G${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
+    worksheet.getCell(`G${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`G${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell(`G${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+    worksheet.getRow(currentRow).height = 22
+    currentRow++
