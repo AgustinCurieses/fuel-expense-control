@@ -101,8 +101,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Get previous factura for comparative analysis
-    let previousFactura: string | null = null
-    let previousByArea: { mainAreaId: string | null, areaName: string, totalCost: number }[] = []
+    let previousFactura = null
+    let previousByArea = []
     
     if (factura) {
       // Step 1: get all distinct factura values that have fuel logs, ordered by date
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
         // Step 4: get mainArea names
         const areas = await prisma.mainArea.findMany({
           where: {
-            id: { in: previousPeriodData.map(item => item.mainAreaId).filter((id): id is string => id !== null) }
+            id: { in: previousPeriodData.map(item => item.mainAreaId) }
           }
         })
 
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
         
         previousByArea = previousPeriodData.map(item => ({
           mainAreaId: item.mainAreaId,
-          areaName: areaMap.get(item.mainAreaId || '') || 'Sin Ãrea',
+          areaName: areaMap.get(item.mainAreaId) || 'Sin Área',
           totalCost: item._sum.totalCost || 0
         }))
         
@@ -165,7 +165,7 @@ export async function GET(request: NextRequest) {
       orientation: 'portrait',
       fitToPage: true,
       fitToWidth: 1,
-      fitToHeight: 0,
+      fitToHeight: 1,
       margins: { left: 0.5, right: 0.5, top: 0.5, bottom: 0.5, header: 0, footer: 0 }
     }
 
@@ -225,11 +225,11 @@ export async function GET(request: NextRequest) {
     const periodLabel = factura 
       ? `Factura N°: ${factura}`
       : startDate && endDate 
-        ? `PerÃ­odo: ${startDate} - ${endDate}`
-        : 'Todos los perÃ­odos'
+        ? `Período: ${startDate} Al ${endDate}`
+        : 'Todos los períodos'
 
     worksheet.mergeCells('A2:J2')
-    worksheet.getCell('A2').value = `Resumen de Consumo de Combustible â€” ${periodLabel}`
+    worksheet.getCell('A2').value = `Resumen de Consumo de Combustible — ${periodLabel}`
     worksheet.getCell('A2').font = { name: 'Calibri', size: 11, bold: true }
     worksheet.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' }
     worksheet.getCell('A2').border = {
@@ -259,7 +259,7 @@ export async function GET(request: NextRequest) {
     worksheet.getCell('A4').border = { top: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' }, bottom: { style: 'thin' } }
     
     worksheet.mergeCells('D4:F4')
-    worksheet.getCell('D4').value = 'VehÃ­culos Activos'
+    worksheet.getCell('D4').value = 'Vehículos Activos'
     worksheet.getCell('D4').font = { bold: true, name: 'Calibri', size: 9 }
     worksheet.getCell('D4').alignment = { horizontal: 'center', vertical: 'middle' }
     worksheet.getCell('D4').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
@@ -350,7 +350,7 @@ export async function GET(request: NextRequest) {
 
     // Initialize consumption by area
     fuelLogs.forEach(log => {
-      const areaName = log.card?.area?.name || 'Sin Ãrea'
+      const areaName = log.card?.area?.name || 'Sin Área'
       if (!consumptionByArea[areaName]) {
         consumptionByArea[areaName] = { 
           cargas: 0, 
@@ -646,7 +646,7 @@ export async function GET(request: NextRequest) {
     
     // Row 20: Section title
     safeMerge(worksheet, `A${currentRow}:J${currentRow}`)
-    worksheet.getCell(`A${currentRow}`).value = 'TOP 5 VEHÃCULOS â€” MAYOR CONSUMO'
+    worksheet.getCell(`A${currentRow}`).value = 'TOP 5 VEHÍCULOS — MAYOR CONSUMO'
     worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
     worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
     worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F3864' } }
@@ -946,7 +946,7 @@ export async function GET(request: NextRequest) {
     
     // Row 28: Section title
     safeMerge(worksheet, `A${currentRow}:J${currentRow}`)
-    worksheet.getCell(`A${currentRow}`).value = 'DISTRIBUCIÃ“N POR COMBUSTIBLE'
+    worksheet.getCell(`A${currentRow}`).value = 'DISTRIBUCIÓN POR COMBUSTIBLE'
     worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
     worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
     worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F3864' } }
@@ -1074,7 +1074,7 @@ export async function GET(request: NextRequest) {
     worksheet.getRow(currentRow).height = 18
     currentRow++
 
-    // BLOCK 1 - "VARIACIÃ“N VS. PERÃODO ANTERIOR" table
+    // BLOCK 1 - "VARIACIÓN VS. PERÍODO ANTERIOR" table
     // Row 34: Headers
     worksheet.getCell(`A${currentRow}`).value = 'Secretaría'
     worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
@@ -1210,7 +1210,7 @@ export async function GET(request: NextRequest) {
       }
 
       safeMerge(worksheet, `H${currentRow}:I${currentRow}`)
-      worksheet.getCell(`H${currentRow}`).value = previousTotal > 0 ? `${percentageChange >= 0 ? '+' : ''}${percentageChange.toFixed(1).replace('.', ',')}%` : 'N/A'
+      worksheet.getCell(`H${currentRow}`).value = previousTotal > 0 ? `${percentageChange >= 0 ? '+' : '-'}${percentageChange.toFixed(1).replace('.', ',')}%` : 'N/A'
       worksheet.getCell(`H${currentRow}`).font = { name: 'Calibri', size: 9 }
       worksheet.getCell(`H${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
       worksheet.getCell(`H${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
@@ -1293,7 +1293,7 @@ export async function GET(request: NextRequest) {
     }
 
     safeMerge(worksheet, `H${currentRow}:I${currentRow}`)
-    worksheet.getCell(`H${currentRow}`).value = previousTotalAmount > 0 ? `${totalPercentageChange >= 0 ? '+' : ''}${totalPercentageChange.toFixed(1).replace('.', ',')}%` : 'N/A'
+    worksheet.getCell(`H${currentRow}`).value = previousTotalAmount > 0 ? `${totalPercentageChange >= 0 ? '+' : '-'}${totalPercentageChange.toFixed(1).replace('.', ',')}%` : 'N/A'
     worksheet.getCell(`H${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
     worksheet.getCell(`H${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
     worksheet.getCell(`H${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }
@@ -1317,168 +1317,206 @@ export async function GET(request: NextRequest) {
     worksheet.getRow(currentRow).height = 16
     currentRow++
 
-    // Spacer before Block 2
+    // BLOCK 2 - "EVOLUCIÓN DEL PRECIO POR LITRO" (single info row)
+    // Row 36: Empty spacer
     worksheet.getRow(currentRow).height = 8
     currentRow++
 
-    // BLOCK 2 header
+    // Row 37: Section title
     safeMerge(worksheet, `A${currentRow}:J${currentRow}`)
     worksheet.getCell(`A${currentRow}`).value = 'EVOLUCIÓN DEL PRECIO POR LITRO'
-    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } }
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
     worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
     worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F3864' } }
-    worksheet.getCell(`A${currentRow}`).border = { top: { style: 'medium' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
+    worksheet.getCell(`A${currentRow}`).font = { ...worksheet.getCell(`A${currentRow}`).font, color: { argb: 'FFFFFFFF' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
     worksheet.getRow(currentRow).height = 18
     currentRow++
 
-    // BLOCK 2 - calculate price values
-    const previousPeriodTotals2 = previousFactura ? await prisma.fuelLog.aggregate({
-      where: { factura: previousFactura, status: 'IMPORTED' },
-      _sum: { totalCost: true, gallons: true }
-    }) : null
-    const previousPrecioPromedio = previousPeriodTotals2?._sum?.totalCost && (previousPeriodTotals2._sum.gallons ?? 0) > 0
-      ? previousPeriodTotals2._sum.totalCost / previousPeriodTotals2._sum.gallons!
-      : 0
-    const precioVariation = precioPromedio - previousPrecioPromedio
-    const precioVariationPct = previousPrecioPromedio > 0 ? (precioVariation / previousPrecioPromedio) * 100 : 0
+    // Row 38: Data row
+    const currentPrecioPromedio = precioPromedio
+    let previousPrecioPromedio = 0
+    if (previousFactura) {
+      const previousPeriodTotals = await prisma.fuelLog.aggregate({
+        where: { factura: previousFactura, status: 'IMPORTED' },
+        _sum: { totalCost: true, gallons: true }
+      })
+      previousPrecioPromedio = previousPeriodTotals._sum.totalCost && previousPeriodTotals._sum.gallons > 0 
+        ? previousPeriodTotals._sum.totalCost / previousPeriodTotals._sum.gallons 
+        : 0
+    }
+    const precioVariation = currentPrecioPromedio - previousPrecioPromedio
+    const precioPercentageChange = previousPrecioPromedio > 0 ? (precioVariation / previousPrecioPromedio) * 100 : 0
 
-    // BLOCK 2 - labels row
     safeMerge(worksheet, `A${currentRow}:B${currentRow}`)
     worksheet.getCell(`A${currentRow}`).value = 'Precio actual:'
-    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
     worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
     worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
-    worksheet.getCell(`A${currentRow}`).border = { top: { style: 'medium' }, bottom: { style: 'thin' }, left: { style: 'medium' }, right: { style: 'medium' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
     safeMerge(worksheet, `C${currentRow}:E${currentRow}`)
     worksheet.getCell(`C${currentRow}`).value = 'Precio anterior:'
-    worksheet.getCell(`C${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`C${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
     worksheet.getCell(`C${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
     worksheet.getCell(`C${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
-    worksheet.getCell(`C${currentRow}`).border = { top: { style: 'medium' }, bottom: { style: 'thin' }, left: { style: 'medium' }, right: { style: 'medium' } }
+    worksheet.getCell(`C${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
     safeMerge(worksheet, `F${currentRow}:H${currentRow}`)
-    worksheet.getCell(`F${currentRow}`).value = 'VariaciÃ³n $:'
-    worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`F${currentRow}`).value = 'Variación:'
+    worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
     worksheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
     worksheet.getCell(`F${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
-    worksheet.getCell(`F${currentRow}`).border = { top: { style: 'medium' }, bottom: { style: 'thin' }, left: { style: 'medium' }, right: { style: 'medium' } }
+    worksheet.getCell(`F${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
     safeMerge(worksheet, `I${currentRow}:J${currentRow}`)
-    worksheet.getCell(`I${currentRow}`).value = 'VariaciÃ³n %:'
-    worksheet.getCell(`I${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`I${currentRow}`).value = previousFactura ? `${precioPercentageChange >= 0 ? '+' : '-'}${precioPercentageChange.toFixed(1).replace('.', ',')}%` : 'Sin dato anterior'
+    worksheet.getCell(`I${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
     worksheet.getCell(`I${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
     worksheet.getCell(`I${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
-    worksheet.getCell(`I${currentRow}`).border = { top: { style: 'medium' }, bottom: { style: 'thin' }, left: { style: 'medium' }, right: { style: 'medium' } }
-    worksheet.getRow(currentRow).height = 16
+    worksheet.getCell(`I${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+    worksheet.getRow(currentRow).height = 22
     currentRow++
 
-    // BLOCK 2 - values row
-    safeMerge(worksheet, `A${currentRow}:B${currentRow}`)
-    worksheet.getCell(`A${currentRow}`).value = formatARSKPI(precioPromedio)
-    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 13, bold: true }
-    worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
-    worksheet.getCell(`A${currentRow}`).border = { top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
-    safeMerge(worksheet, `C${currentRow}:E${currentRow}`)
-    worksheet.getCell(`C${currentRow}`).value = previousFactura ? formatARSKPI(previousPrecioPromedio) : 'Sin dato'
-    worksheet.getCell(`C${currentRow}`).font = { name: 'Calibri', size: 13, bold: true }
-    worksheet.getCell(`C${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell(`C${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
-    worksheet.getCell(`C${currentRow}`).border = { top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
-    safeMerge(worksheet, `F${currentRow}:H${currentRow}`)
-    worksheet.getCell(`F${currentRow}`).value = previousFactura ? `${precioVariation >= 0 ? '+ ' : '- '}${formatARSKPI(Math.abs(precioVariation))}` : 'Sin dato'
-    worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 13, bold: true }
-    worksheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell(`F${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
-    worksheet.getCell(`F${currentRow}`).border = { top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
-    safeMerge(worksheet, `I${currentRow}:J${currentRow}`)
-    worksheet.getCell(`I${currentRow}`).value = previousFactura ? `${precioVariationPct >= 0 ? '+' : ''}${precioVariationPct.toFixed(1).replace('.', ',')}%` : 'Sin dato'
-    worksheet.getCell(`I${currentRow}`).font = { name: 'Calibri', size: 13, bold: true }
-    worksheet.getCell(`I${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell(`I${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
-    worksheet.getCell(`I${currentRow}`).border = { top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
-    worksheet.getRow(currentRow).height = 24
-    currentRow++
-
-    // Spacer before Block 3
+    // BLOCK 3 - "CONCENTRACIÓN DEL GASTO" (single info row)
+    // Row 39: Empty spacer
     worksheet.getRow(currentRow).height = 8
     currentRow++
 
-    // BLOCK 3 header
+    // Row 40: Section title
     safeMerge(worksheet, `A${currentRow}:J${currentRow}`)
     worksheet.getCell(`A${currentRow}`).value = 'CONCENTRACIÓN DEL GASTO'
-    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } }
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 10, bold: true }
     worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
     worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F3864' } }
-    worksheet.getCell(`A${currentRow}`).border = { top: { style: 'medium' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
+    worksheet.getCell(`A${currentRow}`).font = { ...worksheet.getCell(`A${currentRow}`).font, color: { argb: 'FFFFFFFF' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
     worksheet.getRow(currentRow).height = 18
     currentRow++
 
-    // BLOCK 3 - calculate concentration values
-    const sortedCurrentAreas = Object.entries(consumptionByArea)
-      .sort((a, b) => (b[1].importe || 0) - (a[1].importe || 0))
-    const top3CurrentTotal = sortedCurrentAreas.slice(0, 3).reduce((sum, [, area]) => sum + (area.importe || 0), 0)
-    const currentConcentration = currentTotalAmount > 0 ? (top3CurrentTotal / currentTotalAmount) * 100 : 0
-    const sortedPreviousAreas = [...previousByArea].sort((a, b) => (b.totalCost || 0) - (a.totalCost || 0))
-    const top3PreviousTotal = sortedPreviousAreas.slice(0, 3).reduce((sum, p) => sum + (p.totalCost || 0), 0)
-    const totalPrevForConc = previousByArea.reduce((sum, p) => sum + (p.totalCost || 0), 0)
-    const previousConcentration = totalPrevForConc > 0 ? (top3PreviousTotal / totalPrevForConc) * 100 : 0
-    const concentrationDelta = currentConcentration - previousConcentration
-    const activeAreasCount = Object.keys(consumptionByArea).length
+    // Row 41: Data row
+    const currentTop3Total = Object.values(consumptionByArea)
+      .sort((a, b) => (b.importe || 0) - (a.importe || 0))
+      .slice(0, 3)
+      .reduce((sum, area) => sum + (area.importe || 0), 0)
+    
+    let previousTop3Total = 0
+    let previousConcentration = 0
+    if (previousFactura) {
+      const previousAreasSorted = previousByArea.sort((a, b) => b.totalCost - a.totalCost)
+      previousTop3Total = previousAreasSorted.slice(0, 3).reduce((sum, area) => sum + area.totalCost, 0)
+      previousConcentration = previousTotalAmount > 0 ? (previousTop3Total / previousTotalAmount) * 100 : 0
+    }
+    
+    const currentConcentration = currentTotalAmount > 0 ? (currentTop3Total / currentTotalAmount) * 100 : 0
+    const concentrationVariation = currentConcentration - previousConcentration
 
-    // BLOCK 3 - labels row
     safeMerge(worksheet, `A${currentRow}:B${currentRow}`)
     worksheet.getCell(`A${currentRow}`).value = 'Top 3 actual:'
-    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
     worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
     worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
-    worksheet.getCell(`A${currentRow}`).border = { top: { style: 'medium' }, bottom: { style: 'thin' }, left: { style: 'medium' }, right: { style: 'medium' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
     safeMerge(worksheet, `C${currentRow}:E${currentRow}`)
-    worksheet.getCell(`C${currentRow}`).value = 'Top 3 anterior:'
-    worksheet.getCell(`C${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`C${currentRow}`).value = `${currentConcentration.toFixed(1).replace('.', ',')}% del gasto total`
+    worksheet.getCell(`C${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
     worksheet.getCell(`C${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
     worksheet.getCell(`C${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
-    worksheet.getCell(`C${currentRow}`).border = { top: { style: 'medium' }, bottom: { style: 'thin' }, left: { style: 'medium' }, right: { style: 'medium' } }
+    worksheet.getCell(`C${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
     safeMerge(worksheet, `F${currentRow}:H${currentRow}`)
-    worksheet.getCell(`F${currentRow}`).value = 'Δ concentración:'
-    worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
+    worksheet.getCell(`F${currentRow}`).value = 'Top 3 anterior:'
+    worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
     worksheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
     worksheet.getCell(`F${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
-    worksheet.getCell(`F${currentRow}`).border = { top: { style: 'medium' }, bottom: { style: 'thin' }, left: { style: 'medium' }, right: { style: 'medium' } }
-    safeMerge(worksheet, `I${currentRow}:J${currentRow}`)
-    worksheet.getCell(`I${currentRow}`).value = 'Áreas activas:'
-    worksheet.getCell(`I${currentRow}`).font = { name: 'Calibri', size: 9, bold: true }
-    worksheet.getCell(`I${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell(`I${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
-    worksheet.getCell(`I${currentRow}`).border = { top: { style: 'medium' }, bottom: { style: 'thin' }, left: { style: 'medium' }, right: { style: 'medium' } }
-    worksheet.getRow(currentRow).height = 16
+    worksheet.getCell(`F${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    safeMerge(worksheet, `G${currentRow}:J${currentRow}`)
+    worksheet.getCell(`G${currentRow}`).value = previousFactura ? `${previousConcentration.toFixed(1).replace('.', ',')}% del gasto total` : 'Sin dato anterior'
+    worksheet.getCell(`G${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
+    worksheet.getCell(`G${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`G${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell(`G${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    safeMerge(worksheet, `A${currentRow}:F${currentRow}`)
+    worksheet.getCell(`A${currentRow}`).value = 'Δ concentración:'
+    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
+    worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell(`A${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+
+    safeMerge(worksheet, `G${currentRow}:J${currentRow}`)
+    worksheet.getCell(`G${currentRow}`).value = previousFactura ? `${concentrationVariation >= 0 ? '+' : '-'}${concentrationVariation.toFixed(1).replace('.', ',')} puntos porcentuales` : 'Sin dato anterior'
+    worksheet.getCell(`G${currentRow}`).font = { name: 'Calibri', size: 11, bold: true }
+    worksheet.getCell(`G${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getCell(`G${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FE' } }
+    worksheet.getCell(`G${currentRow}`).border = {
+      top: { style: 'medium' },
+      bottom: { style: 'medium' },
+      left: { style: 'medium' },
+      right: { style: 'medium' }
+    }
+    worksheet.getRow(currentRow).height = 22
     currentRow++
 
-    // BLOCK 3 - values row
-    safeMerge(worksheet, `A${currentRow}:B${currentRow}`)
-    worksheet.getCell(`A${currentRow}`).value = `${currentConcentration.toFixed(1).replace('.', ',')}%`
-    worksheet.getCell(`A${currentRow}`).font = { name: 'Calibri', size: 13, bold: true }
-    worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell(`A${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
-    worksheet.getCell(`A${currentRow}`).border = { top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
-    safeMerge(worksheet, `C${currentRow}:E${currentRow}`)
-    worksheet.getCell(`C${currentRow}`).value = previousFactura ? `${previousConcentration.toFixed(1).replace('.', ',')}%` : 'Sin dato'
-    worksheet.getCell(`C${currentRow}`).font = { name: 'Calibri', size: 13, bold: true }
-    worksheet.getCell(`C${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell(`C${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
-    worksheet.getCell(`C${currentRow}`).border = { top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
-    safeMerge(worksheet, `F${currentRow}:H${currentRow}`)
-    worksheet.getCell(`F${currentRow}`).value = previousFactura ? `${concentrationDelta >= 0 ? '+' : ''}${concentrationDelta.toFixed(1).replace('.', ',')} pp` : 'Sin dato'
-    worksheet.getCell(`F${currentRow}`).font = { name: 'Calibri', size: 13, bold: true }
-    worksheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell(`F${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
-    worksheet.getCell(`F${currentRow}`).border = { top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
-    safeMerge(worksheet, `I${currentRow}:J${currentRow}`)
-    worksheet.getCell(`I${currentRow}`).value = `${activeAreasCount} áreas`
-    worksheet.getCell(`I${currentRow}`).font = { name: 'Calibri', size: 13, bold: true }
-    worksheet.getCell(`I${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' }
-    worksheet.getCell(`I${currentRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
-    worksheet.getCell(`I${currentRow}`).border = { top: { style: 'thin' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
-    worksheet.getRow(currentRow).height = 24
-    currentRow++
+    // Set print area to A1:J50 for portrait A4
+    worksheet.pageSetup.printArea = 'A1:J50'
 
     // FIX 2: Disable wrap_text on ALL cells to prevent Excel from overriding row heights
     const lastRow = Math.max(currentRow, 50) // Ensure we cover all used rows
