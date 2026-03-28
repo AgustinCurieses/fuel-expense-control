@@ -1147,12 +1147,15 @@ export async function GET(request: NextRequest) {
 
     // Data rows - only include areas that appear in CURRENT factura
     let comparisonRowIndex = 0
+    const allAreas = await prisma.mainArea.findMany({ select: { id: true, name: true } })
+    const nameToIdMap = new Map(allAreas.map((a: {id: string, name: string}) => [a.name, a.id]))
+    
     Object.keys(consumptionByArea).forEach(areaName => {
       const currentArea = consumptionByArea[areaName]
-      const previousArea = previousByArea.find(p => p.mainAreaId === currentArea.mainAreaId)
+      const previousArea = previousByArea.find(p => p.mainAreaId === nameToIdMap.get(areaName))
       
       const currentTotal = currentArea.importe || 0
-      const previousTotal = previousArea?.totalCost || 0
+      const previousTotal = previousArea?._sum?.totalCost ?? 0
       const difference = currentTotal - previousTotal
       const percentageChange = previousTotal > 0 ? (difference / previousTotal) * 100 : 0
       
@@ -1237,7 +1240,7 @@ export async function GET(request: NextRequest) {
 
     // TOTAL row
     const currentTotalAmount = Object.values(consumptionByArea).reduce((sum, area) => sum + (area.importe || 0), 0)
-    const previousTotalAmount = previousByArea.reduce((sum, area) => sum + area.totalCost, 0)
+    const previousTotalAmount = previousByArea.reduce((sum, area) => sum + (area._sum?.totalCost ?? 0), 0)
     const totalDifference = currentTotalAmount - previousTotalAmount
     const totalPercentageChange = previousTotalAmount > 0 ? (totalDifference / previousTotalAmount) * 100 : 0
 
