@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Download, FileSpreadsheet, Calendar, MapPin, Filter, Printer, TrendingUp, Upload, Settings, CheckCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { clsx } from 'clsx'
+import { Download, FileSpreadsheet, Calendar, Filter, Search, Settings, CheckCircle, X, TrendingUp, MapPin } from 'lucide-react'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { ToastComponent, useToast } from '@/components/ui/Toast'
-import { FuelLog, Card, MainArea, SubArea, ImportSettings, ImportMapping, ImportResult } from '@/types'
+import { FuelLog, Card, MainArea, SubArea, ImportSettings, ImportMapping } from '@/types'
 
 export default function ReportsPage() {
   const [fuelLogs, setFuelLogs] = useState<(FuelLog & { 
@@ -30,11 +31,8 @@ export default function ReportsPage() {
   const [isExporting, setIsExporting] = useState(false)
   const [showSummaryModal, setShowSummaryModal] = useState(false)
   const [selectedSummaryMonth, setSelectedSummaryMonth] = useState<string>('')
-  const [isImporting, setIsImporting] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [importResult, setImportResult] = useState<ImportResult | null>(null)
-  const [useAlternativeImporte, setUseAlternativeImporte] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false)
 
   // Column mappings state - EXACT 12 FIELDS WITH SPANISH LABELS
   const [columnMappings, setColumnMappings] = useState({
@@ -58,18 +56,12 @@ export default function ReportsPage() {
 
   const loadData = async () => {
     try {
-      const [logsResponse, areasResponse, settingsResponse, facturasResponse] = await Promise.all([
-        fetch('/api/fuel-logs'),
+      const [areasResponse, settingsResponse, facturasResponse] = await Promise.all([
         fetch('/api/areas'),
         fetch('/api/import-settings'),
         fetch('/api/facturas')
       ])
-      
-      if (logsResponse.ok) {
-        const logsData = await logsResponse.json()
-        setFuelLogs(logsData)
-      }
-      
+
       if (areasResponse.ok) {
         const areasData = await areasResponse.json()
         setMainAreas(areasData.mainAreas)
@@ -166,14 +158,30 @@ export default function ReportsPage() {
         rawColumnName: columnName
       }))
 
-      const response = await fetch('/api/import-settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: 'Configuración Principal',
-          mappings
+      const existingSetting = importSettings.length > 0 ? importSettings[0] : null
+
+      let response: Response
+      if (existingSetting) {
+        response = await fetch('/api/import-settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: existingSetting.id,
+            name: existingSetting.name,
+            isActive: existingSetting.isActive,
+            mappings
+          })
         })
-      })
+      } else {
+        response = await fetch('/api/import-settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Configuración Principal',
+            mappings
+          })
+        })
+      }
 
       if (!response.ok) {
         throw new Error('Failed to save settings')
@@ -188,75 +196,50 @@ export default function ReportsPage() {
     }
   }
 
-  const handleImportExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('=== FRONTEND IMPORT HANDLER TRIGGERED ===')
-    console.log('File selected:', event.target.files?.[0]?.name)
-    console.log('Use alternative importe:', useAlternativeImporte)
-    
-    const file = event.target.files?.[0]
-    if (!file) {
-      console.log('No file selected, returning early')
-      return
-    }
-
-    setIsImporting(true)
-    setImportResult(null)
-
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('useAlternativeImporte', useAlternativeImporte.toString())
-
-      console.log('About to fetch /api/import-excel...')
-      
-      const response = await fetch('/api/import-excel', {
-        method: 'POST',
-        body: formData
-      })
-
-      console.log('Response received:', response.status, response.statusText)
-
-      if (!response.ok) {
-        const error = await response.json()
-        console.log('Response error:', error)
-        throw new Error(error.error || 'Import failed')
-      }
-
-      const result: ImportResult = await response.json()
-      console.log('Import result:', result)
-      setImportResult(result)
-      
-      if (result.success) {
-        await loadData() // Refresh data
-      }
-    } catch (error) {
-      console.error('Import error:', error)
-      setImportResult({
-        success: false,
-        totalRows: 0,
-        importedRows: 0,
-        pendingRows: 0,
-        duplicateRows: 0,
-        failedRows: 0,
-        errors: [error instanceof Error ? error.message : 'Unknown error'],
-        warnings: []
-      })
-    } finally {
-      setIsImporting(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-    }
-  }
 
   const handleFilterModeChange = (mode: 'period' | 'factura') => {
     setFilterMode(mode)
+    setFuelLogs([])
     if (mode === 'period') {
       setFacturaFilter('')
     } else {
       setStartDate('')
       setEndDate('')
     }
+  }
+
+  const fetchFilteredLogs = async () => {
+    if (filterMode === 'period' && (!startDate || !endDate)) {
+      alert('Por favor seleccione ambas fechas')
+      return
+    }
+    if (filterMode === 'factura' && !facturaFilter) {
+      alert('Por favor seleccione una factura')
+      return
+    }
+    const params = new URLSearchParams()
+    if (filterMode === 'period') {
+      params.append('startDate', startDate)
+      params.append('endDate', endDate)
+    } else {
+      params.append('factura', facturaFilter)
+    }
+    if (selectedArea) params.append('areaId', selectedArea)
+    setIsLoadingLogs(true)
+    try {
+      const res = await fetch(`/api/fuel-logs?${params.toString()}`)
+      if (res.ok) setFuelLogs(await res.json())
+    } finally {
+      setIsLoadingLogs(false)
+    }
+  }
+
+  const clearFilters = () => {
+    setSelectedArea('')
+    setStartDate('')
+    setEndDate('')
+    setFacturaFilter('')
+    setFuelLogs([])
   }
 
   const handleGenerateReport = async () => {
@@ -397,16 +380,9 @@ export default function ReportsPage() {
     }
   }
 
-  // Filter data based on selected filters
-  const filteredData = fuelLogs.filter(log => {
-    if (selectedArea && (!log.card || log.card.areaId !== selectedArea)) return false
-    if (startDate && new Date(log.date) < new Date(startDate)) return false
-    if (endDate && new Date(log.date) > new Date(endDate)) return false
-    return true
-  })
 
   // Calculate summary statistics (excluding PENDING rows)
-  const validData = filteredData.filter(log => log.card !== null && log.card?.area !== null)
+  const validData = fuelLogs.filter(log => log.card !== null && log.card?.area !== null)
   const summary = {
     totalAmount: validData.reduce((sum, log) => sum + log.amount, 0),
     totalLiters: validData.reduce((sum, log) => sum + log.gallons, 0),
@@ -418,7 +394,7 @@ export default function ReportsPage() {
   }
 
   // Group data by area
-  const dataByArea = filteredData
+  const dataByArea = fuelLogs
     .filter(log => log.card !== null && log.card?.area !== null)
     .reduce((groups, log) => {
       const areaName = log.card?.area?.name ?? 'Sin Área'
@@ -443,7 +419,7 @@ export default function ReportsPage() {
               <Settings className="w-4 h-4 mr-2" />
               Configuración
             </Button>
-            <Button onClick={handleGenerateReport} disabled={isExporting || filteredData.length === 0}>
+            <Button onClick={handleGenerateReport} disabled={isExporting || fuelLogs.length === 0}>
               <Download className="w-4 h-4 mr-2" />
               {isExporting ? 'Generando...' : 'Generar Reporte'}
             </Button>
@@ -454,136 +430,54 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Import Section */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <Upload className="w-5 h-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Importar Datos de Excel</h2>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center space-x-4">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleImportExcel}
-                className="hidden"
-              />
-              <Button 
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isImporting}
-              >
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                {isImporting ? 'Importando...' : 'Seleccionar Archivo Excel'}
-              </Button>
-              
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={useAlternativeImporte}
-                  onChange={(e) => setUseAlternativeImporte(e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                <span className="text-sm text-gray-900">
-                  Usar "IMP TOT YER" en lugar de "IMP TOT PVP ESTABLECIMIENTO"
-                </span>
-              </label>
-            </div>
-
-            {importResult && (
-              <div className={`p-4 rounded-lg ${
-                importResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-              }`}>
-                <h3 className={`font-semibold mb-2 ${
-                  importResult.success ? 'text-green-800' : 'text-red-800'
-                }`}>
-                  {importResult.success ? 'Importación Exitosa' : 'Importación con Errores'}
-                </h3>
-                <div className="text-sm space-y-1">
-                  <p>Total de filas: {importResult.totalRows}</p>
-                  <p>Filas importadas: {importResult.importedRows}</p>
-                  <p>Filas pendientes: {importResult.pendingRows || 0}</p>
-                  <p>Filas duplicadas: {importResult.duplicateRows || 0}</p>
-                  <p>Filas fallidas: {importResult.failedRows}</p>
-                </div>
-                
-                {importResult.errors.length > 0 && (
-                  <div className="mt-3">
-                    <p className="font-medium text-red-800">Errores:</p>
-                    <ul className="list-disc list-inside text-sm text-red-700">
-                      {importResult.errors.map((error, index) => (
-                        <li key={index}>{error}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                
-                {importResult.warnings.length > 0 && (
-                  <div className="mt-3">
-                    <p className="font-medium text-yellow-800">Advertencias:</p>
-                    <ul className="list-disc list-inside text-sm text-yellow-700">
-                      {importResult.warnings.map((warning, index) => (
-                        <li key={index}>{warning}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <Filter className="w-5 h-5 text-gray-500" />
-            <h2 className="text-lg font-semibold text-gray-900">Filtros</h2>
-          </div>
-          
-          {/* Filter Mode Selection */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-900 mb-3">Tipo de Filtro</label>
-            <div className="space-y-2">
-              <label className="flex items-center space-x-3">
-                <input
-                  type="radio"
-                  name="filterMode"
-                  value="period"
-                  checked={filterMode === 'period'}
-                  onChange={(e) => handleFilterModeChange(e.target.value as 'period' | 'factura')}
-                  className="text-blue-600 border-gray-300"
-                />
-                <span className="text-sm text-gray-900">Filtrar por Período</span>
-              </label>
-              <label className="flex items-center space-x-3">
-                <input
-                  type="radio"
-                  name="filterMode"
-                  value="factura"
-                  checked={filterMode === 'factura'}
-                  onChange={(e) => handleFilterModeChange(e.target.value as 'period' | 'factura')}
-                  className="text-blue-600 border-gray-300"
-                />
-                <span className="text-sm text-gray-900">Filtrar por Número de Factura</span>
-              </label>
+          {/* Header row: title + mode toggle */}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <div className="flex items-center space-x-2">
+              <Filter className="w-5 h-5 text-gray-500" />
+              <h2 className="text-lg font-semibold text-gray-900">Filtros</h2>
+            </div>
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm font-medium">
+              <button
+                onClick={() => handleFilterModeChange('period')}
+                className={clsx(
+                  'flex items-center gap-1.5 px-4 py-2 transition-colors',
+                  filterMode === 'period'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                )}
+              >
+                <Calendar className="w-4 h-4" />
+                Por Período
+              </button>
+              <button
+                onClick={() => handleFilterModeChange('factura')}
+                className={clsx(
+                  'flex items-center gap-1.5 px-4 py-2 border-l border-gray-200 transition-colors',
+                  filterMode === 'factura'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                )}
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                Por Factura
+              </button>
             </div>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+          {/* Filter fields */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Select
-              label="Área"
+              label="Área / Secretaría"
               value={selectedArea}
               onChange={(e) => setSelectedArea(e.target.value)}
               options={[
                 { value: '', label: 'Todas las áreas' },
-                ...mainAreas.map(area => ({
-                  value: area.id,
-                  label: area.name
-                }))
+                ...mainAreas.map(area => ({ value: area.id, label: area.name }))
               ]}
             />
-            
+
             {filterMode === 'period' ? (
               <>
                 <Input
@@ -592,20 +486,15 @@ export default function ReportsPage() {
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                 />
-                
                 <Input
                   label="Fecha de Fin"
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                 />
-                
-                <div></div> {/* Empty placeholder for grid alignment */}
               </>
             ) : (
-              <>
-                <div></div> {/* Empty placeholder for grid alignment */}
-                <div></div> {/* Empty placeholder for grid alignment */}
+              <div className="md:col-span-2">
                 <Select
                   label="Número de Factura"
                   value={facturaFilter}
@@ -616,17 +505,75 @@ export default function ReportsPage() {
                   }}
                   options={
                     availableFacturas.length > 0
-                      ? availableFacturas.map(f => ({
-                          value: f.factura,
-                          label: `${f.hasTotal ? '✓ ' : ''}${f.factura} - ${f.label}`
-                        }))
+                      ? [
+                          { value: '', label: 'Seleccione una factura...' },
+                          ...availableFacturas.map(f => ({
+                            value: f.factura,
+                            label: `${f.hasTotal ? '✓ ' : ''}${f.factura} — ${f.label}`
+                          }))
+                        ]
                       : [{ value: '', label: 'No hay facturas disponibles' }]
                   }
                   disabled={availableFacturas.length === 0}
                 />
-                <div></div> {/* Empty placeholder for grid alignment */}
-              </>
+              </div>
             )}
+          </div>
+
+          {/* Active filter badges + action buttons */}
+          <div className="mt-5 pt-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              {selectedArea && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {mainAreas.find(a => a.id === selectedArea)?.name}
+                  <button onClick={() => setSelectedArea('')} className="ml-0.5 hover:text-blue-600">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {filterMode === 'period' && startDate && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  Desde {startDate.split('-').reverse().join('/')}
+                  <button onClick={() => setStartDate('')} className="ml-0.5 hover:text-blue-600">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {filterMode === 'period' && endDate && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  Hasta {endDate.split('-').reverse().join('/')}
+                  <button onClick={() => setEndDate('')} className="ml-0.5 hover:text-blue-600">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {filterMode === 'factura' && facturaFilter && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  Factura {facturaFilter}
+                  <button onClick={() => { setFacturaFilter(''); setValidacionFactura(''); }} className="ml-0.5 hover:text-blue-600">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {fuelLogs.length > 0 && (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                  {fuelLogs.length} registro{fuelLogs.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {(selectedArea || startDate || endDate || facturaFilter) && (
+                <Button variant="outline" onClick={clearFilters}>
+                  <X className="w-4 h-4 mr-1" />
+                  Limpiar
+                </Button>
+              )}
+              <Button onClick={fetchFilteredLogs} disabled={isLoadingLogs}>
+                <Search className="w-4 h-4 mr-2" />
+                {isLoadingLogs ? 'Buscando...' : 'Buscar'}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -785,7 +732,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Data Table */}
-        {filteredData.length > 0 && (
+        {fuelLogs.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Datos Importados</h2>
@@ -805,7 +752,7 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredData
+                  {fuelLogs
                     .filter(log => log.card !== null && log.card?.area !== null)
                     .map((log) => (
                     <tr key={log.id}>
@@ -838,7 +785,7 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {filteredData.length === 0 && (
+        {fuelLogs.length === 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
             <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No hay datos</h3>
@@ -903,37 +850,6 @@ export default function ReportsPage() {
           <p className="text-sm text-gray-600">
             Configure cómo las columnas del archivo Excel se mapean a los campos internos del sistema.
           </p>
-          
-          {/* Importe Column Selection - RADIO BUTTONS */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <label className="block text-sm font-medium text-gray-900 mb-3">
-              Columna de Importe Activa
-            </label>
-            <div className="space-y-2">
-              <label className="flex items-center space-x-3">
-                <input
-                  type="radio"
-                  name="importeColumn"
-                  value="PVP"
-                  checked={!useAlternativeImporte}
-                  onChange={(e) => setUseAlternativeImporte(e.target.value === 'YER')}
-                  className="text-blue-600 border-gray-300"
-                />
-                <span className="text-sm text-gray-900">IMP TOT PVP ESTABLECIMIENTO (Precio en estación)</span>
-              </label>
-              <label className="flex items-center space-x-3">
-                <input
-                  type="radio"
-                  name="importeColumn"
-                  value="YER"
-                  checked={useAlternativeImporte}
-                  onChange={(e) => setUseAlternativeImporte(e.target.value === 'YER')}
-                  className="text-blue-600 border-gray-300"
-                />
-                <span className="text-sm text-gray-900">IMP TOT YER (Precio contractual)</span>
-              </label>
-            </div>
-          </div>
           
           {/* Column Mappings - ALL 11 FIELDS */}
           <div className="space-y-4">

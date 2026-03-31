@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/database'
 import ExcelJS from 'exceljs'
-
-const prisma = new PrismaClient()
 
 // Helper function to format dates
 function formatDate(date: Date | null): string {
@@ -255,12 +253,9 @@ export async function GET() {
     })
 
   } catch (error) {
-    console.error('Error exporting cards:', error)
     return NextResponse.json(
       { error: 'Error exporting cards' },
       { status: 500 }
     )
-  } finally {
-    await prisma.$disconnect()
   }
 }

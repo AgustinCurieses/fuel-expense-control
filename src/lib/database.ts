@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { MainArea, SubArea, Card, FuelLog } from '@/types'
+import { MainArea, SubArea, Card, FuelLog, CardFormData } from '@/types'
 
 // Create a singleton Prisma client
 const globalForPrisma = globalThis as unknown as {
@@ -41,20 +41,17 @@ export class AreasService {
   }
 
   static async updateMainArea(id: string, name: string): Promise<MainArea> {
-    console.log('AreasService.updateMainArea called with:', { id, name })
     try {
       const area = await prisma.mainArea.update({
         where: { id },
         data: { name, updatedAt: new Date() }
       })
-      console.log('Area updated successfully:', area)
       return {
         ...area,
         createdAt: new Date(area.createdAt),
         updatedAt: new Date(area.updatedAt)
       }
     } catch (error) {
-      console.error('Error in updateMainArea:', error)
       throw error
     }
   }
@@ -121,24 +118,6 @@ export class CardsService {
     }))
   }
 
-  static async createCard(data: CardFormData): Promise<Card> {
-    const card = await prisma.card.create({
-      data: {
-        cardNumber: data.cardNumber,
-        identification: data.identification || null,
-        areaId: data.areaId,
-        subAreaId: data.subAreaId || null,
-        userId: '1' // Mock user ID for now
-      }
-    })
-    return {
-      ...card,
-      identification: card.identification || undefined,
-      createdAt: new Date(card.createdAt),
-      updatedAt: new Date(card.updatedAt)
-    }
-  }
-
   static async updateCard(id: string, data: CardFormData): Promise<Card> {
     const card = await prisma.card.update({
       where: { id },
@@ -180,23 +159,9 @@ export class CardsService {
 
 // Fuel Logs Service
 export class FuelLogsService {
-  static async createFuelLog(data: Omit<FuelLog, 'id' | 'createdAt' | 'updatedAt'>): Promise<FuelLog> {
-    const fuelLog = await prisma.fuelLog.create({
-      data: {
-        ...data,
-        userId: '1' // Mock user ID for now
-      }
-    })
-    return {
-      ...fuelLog,
-      createdAt: new Date(fuelLog.createdAt),
-      updatedAt: new Date(fuelLog.updatedAt)
-    }
-  }
-
   static async getFuelLogsByCard(cardId: string): Promise<FuelLog[]> {
     const logs = await prisma.fuelLog.findMany({
-      where: { cardId },
+      where: { cardId, status: 'IMPORTED' },
       include: { card: true },
       orderBy: { date: 'desc' }
     })
@@ -209,7 +174,7 @@ export class FuelLogsService {
 
   static async getFuelLogsByArea(areaId: string): Promise<FuelLog[]> {
     const logs = await prisma.fuelLog.findMany({
-      where: { card: { areaId } },
+      where: { card: { areaId }, status: 'IMPORTED' },
       include: { card: true },
       orderBy: { date: 'desc' }
     })

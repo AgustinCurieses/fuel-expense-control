@@ -28,10 +28,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    console.log('Card creation request body:', body)
     const { cardNumber, identification, areaId, subAreaId, cardType, allowedFuel, userId } = body
     
-    console.log('Extracted fields:', { cardNumber, identification, areaId, subAreaId, cardType, allowedFuel, userId })
 
     const cardData: any = {
       cardNumber,
@@ -69,10 +67,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    console.log('Card update request body:', body)
     const { id, cardNumber, identification, areaId, subAreaId, cardType, allowedFuel } = body
     
-    console.log('Update extracted fields:', { id, cardNumber, identification, areaId, subAreaId, cardType, allowedFuel })
 
     const card = await prisma.card.update({
       where: { id },

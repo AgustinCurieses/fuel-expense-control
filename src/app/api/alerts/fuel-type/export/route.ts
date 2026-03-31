@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/database'
 import ExcelJS from 'exceljs'
-
-const prisma = new PrismaClient()
 
 // Helper function to format dates
 function formatDate(date: Date): string {
@@ -26,13 +24,13 @@ function getFuelGroup(product: string): 'nafta' | 'gasoil' | 'unknown' {
   if (!product) return 'unknown'
   const productUpper = product.toUpperCase()
   
-  // Group A (naftas)
-  if (productUpper.includes('NAFTA') || productUpper.includes('INFINIA') && !productUpper.includes('DIESEL')) {
+  // Group A (naftas): NAFTA SUPER or (INFINIA without DIESEL)
+  if (productUpper.includes('NAFTA') || (productUpper.includes('INFINIA') && !productUpper.includes('DIESEL'))) {
     return 'nafta'
   }
-  
-  // Group B (gasoil)
-  if (productUpper.includes('DIESEL') || productUpper.includes('D.DIESEL')) {
+
+  // Group B (gasoil): INFINIA DIESEL or D.DIESEL 500
+  if (productUpper.includes('INFINIA DIESEL') || productUpper.includes('D.DIESEL')) {
     return 'gasoil'
   }
   
@@ -41,8 +39,6 @@ function getFuelGroup(product: string): 'nafta' | 'gasoil' | 'unknown' {
 
 export async function GET() {
   try {
-    console.log('=== Exporting Fuel Type Alerts ===')
-    
     // Get all cards that have FuelLogs with status = 'IMPORTED'
     const cardsWithLogs = await prisma.card.findMany({
       where: {
@@ -65,8 +61,6 @@ export async function GET() {
         subArea: true
       }
     })
-
-    console.log(`Found ${cardsWithLogs.length} cards with imported fuel logs`)
 
     const alerts: any[] = []
 
@@ -161,8 +155,6 @@ export async function GET() {
         }
       }
     }
-
-    console.log(`Total fuel type alerts for export: ${alerts.length}`)
 
     // Flatten all suspicious loads for export
     const allAlerts = alerts.flatMap(alert =>
@@ -278,12 +270,9 @@ export async function GET() {
     })
 
   } catch (error) {
-    console.error('Error exporting fuel type alerts:', error)
     return NextResponse.json(
       { error: 'Error exporting fuel type alerts' },
       { status: 500 }
     )
-  } finally {
-    await prisma.$disconnect()
   }
 }

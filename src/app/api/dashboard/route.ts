@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/database'
 
 // Argentine currency formatter
 function formatARS(amount: number): string {
@@ -112,34 +110,28 @@ export async function GET() {
       date: Date
     }> = []
 
-    // Recent Excel imports (last 3)
-    const recentImports = await prisma.fuelLog.groupBy({
-      by: ['date'],
-      where: {
-        status: 'IMPORTED',
-        date: {
-          gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
-        }
-      },
-      _count: {
-        id: true
-      },
-      orderBy: {
-        date: 'desc'
-      },
+    // Recent Excel imports (last 3 distinct dates)
+    const recentImportDates = await prisma.fuelLog.findMany({
+      where: { status: 'IMPORTED' },
+      select: { date: true },
+      distinct: ['date'],
+      orderBy: { date: 'desc' },
       take: 3
     })
 
-    recentImports.forEach(import_ => {
-      const date = new Date(import_.date)
+    for (const importDate of recentImportDates) {
+      const countResult = await prisma.fuelLog.count({
+        where: { status: 'IMPORTED', date: importDate.date }
+      })
+      const date = new Date(importDate.date)
       const formattedDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`
       recentActivity.push({
         type: 'import',
-        title: `${import_._count.id} registros importados`,
+        title: `${countResult} registros importados`,
         description: `el ${formattedDate}`,
-        date: import_.date
+        date: importDate.date
       })
-    })
+    }
 
     // Recent card assignments (last 2)
     const recentAssignments = await prisma.cardAreaHistory.findMany({
@@ -180,39 +172,22 @@ export async function GET() {
     recentActivity.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     const limitedActivity = recentActivity.slice(0, 5)
 
-    // 5. Últimos Precios de Combustible: Most recent FuelLog for each fuel type
+    // 5. Últimos Precios de Combustible: Most recent FuelLog for each fuel type (unified query)
     const fuelTypes = ["INFINIA DIESEL", "NAFTA SUPER", "INFINIA", "D.DIESEL 500"]
-    const fuelPrices = await Promise.all(
-      fuelTypes.map(async (product) => {
-        const recentLog = await prisma.fuelLog.findFirst({
-          where: {
-            description: product,
-            status: 'IMPORTED'
-          },
-          orderBy: {
-            date: 'desc'
-          },
-          select: {
-            amount: true,
-            gallons: true,
-            date: true
-          }
-        })
+    const recentFuelLogs = await prisma.fuelLog.findMany({
+      where: { description: { in: fuelTypes }, status: 'IMPORTED' },
+      orderBy: { date: 'desc' },
+      select: { description: true, totalCost: true, gallons: true, date: true }
+    })
 
-        if (!recentLog || !recentLog.gallons || recentLog.gallons === 0) {
-          return null
-        }
-
-        const pricePerLiter = recentLog.amount / recentLog.gallons
-        return {
-          product,
-          pricePerLiter,
-          date: recentLog.date
-        }
+    const validFuelPrices = fuelTypes
+      .map(product => {
+        const recentLog = recentFuelLogs.find(l => l.description === product)
+        if (!recentLog || !recentLog.gallons || recentLog.gallons === 0) return null
+        const pricePerLiter = recentLog.totalCost / recentLog.gallons
+        return { product, pricePerLiter, date: recentLog.date }
       })
-    )
-
-    const validFuelPrices = fuelPrices.filter(price => price !== null)
+      .filter(price => price !== null)
 
     return NextResponse.json({
       lastFactura: lastFacturaNumber,

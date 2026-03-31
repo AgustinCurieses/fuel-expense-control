@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/database'
 
 export async function POST(
   request: NextRequest,
@@ -82,12 +80,9 @@ export async function POST(
     return NextResponse.json(updatedCard)
 
   } catch (error) {
-    console.error('Error reassigning card area:', error)
     return NextResponse.json(
       { error: 'Failed to reassign card area' },
       { status: 500 }
     )
-  } finally {
-    await prisma.$disconnect()
   }
 }

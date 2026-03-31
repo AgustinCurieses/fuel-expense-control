@@ -48,7 +48,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
     await prisma.user.delete({ where: { id } })
 
     await logAction({
-      action: 'UPDATE_USER',
+      action: 'DELETE_USER',
       entity: 'User',
       entityId: id,
       detail: { email: user.email, deleted: true }

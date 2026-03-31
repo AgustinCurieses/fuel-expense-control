@@ -2,13 +2,30 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/database'
 import { logAction } from '@/lib/audit'
 
+// Resolve the area assigned to a card at a specific date using CardAreaHistory
+async function getCardAreaAtDate(cardId: string, date: Date) {
+  const historyRecord = await prisma.cardAreaHistory.findFirst({
+    where: {
+      cardId: cardId,
+      validFrom: {
+        lte: date
+      },
+      OR: [
+        { validTo: { gte: date } },
+        { validTo: null }
+      ]
+    },
+    orderBy: {
+      validFrom: 'desc'
+    }
+  })
+
+  return historyRecord
+}
+
 export async function POST(request: NextRequest) {
   try {
-    console.log('=== ASSIGNING PENDING CARD ===')
-    
     const { cardNumber, identification, mainAreaId, subAreaId } = await request.json()
-    
-    console.log('Assignment data:', { cardNumber, identification, mainAreaId, subAreaId })
 
     if (!cardNumber || !mainAreaId) {
       return NextResponse.json(
@@ -44,31 +61,40 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      console.log('Created new card:', newCard.id)
-
-      // 2. Update all pending fuel logs for this card number
-      const updatedLogs = await tx.fuelLog.updateMany({
+      // 2. Find all pending fuel logs for this card number
+      const pendingLogs = await tx.fuelLog.findMany({
         where: {
           cardNumber: cardNumber,
           status: 'PENDING'
         },
-        data: {
-          status: 'IMPORTED',
-          cardId: newCard.id,
-          mainAreaId: newCard.areaId,
-          subAreaId: newCard.subAreaId
-        }
+        select: { id: true, date: true }
       })
 
-      console.log(`Updated ${updatedLogs.count} fuel logs`)
+      // 3. For each log, resolve the correct area at the log's date using CardAreaHistory
+      let updatedCount = 0
+      for (const log of pendingLogs) {
+        const historyRecord = await getCardAreaAtDate(newCard.id, log.date)
+
+        const resolvedMainAreaId = historyRecord?.mainAreaId ?? newCard.areaId
+        const resolvedSubAreaId = historyRecord?.subAreaId ?? newCard.subAreaId
+
+        await tx.fuelLog.update({
+          where: { id: log.id },
+          data: {
+            status: 'IMPORTED',
+            cardId: newCard.id,
+            mainAreaId: resolvedMainAreaId,
+            subAreaId: resolvedSubAreaId
+          }
+        })
+        updatedCount++
+      }
 
       return {
         card: newCard,
-        updatedCount: updatedLogs.count
+        updatedCount
       }
     })
-
-    console.log('Assignment completed successfully')
 
     await logAction({
       action: 'ASSIGN_CARD',

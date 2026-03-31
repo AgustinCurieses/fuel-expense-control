@@ -22,7 +22,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Check authentication on mount
     const user = AuthService.getCurrentUser()
-    console.log('AuthContext - Initial user check:', user)
     setAuthState({
       user,
       isAuthenticated: !!user,
@@ -33,14 +32,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       const user = await AuthService.login(email, password)
-      console.log('AuthContext - Login successful:', user)
       setAuthState({
         user,
         isAuthenticated: true,
         isLoading: false
       })
     } catch (error) {
-      console.log('AuthContext - Login failed:', error)
       setAuthState(prev => ({ ...prev, isLoading: false }))
       throw error
     }

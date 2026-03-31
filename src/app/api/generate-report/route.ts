@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/database'
 import { Workbook, Worksheet } from 'exceljs'
-
-const prisma = new PrismaClient()
 
 // Argentine currency format function
 function formatARS(value: number): string {
@@ -35,12 +33,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Parse dates only if provided
+    // Parse dates only if provided (use split to avoid UTC offset issues)
     let start, end
     if (startDate && endDate) {
-      start = new Date(startDate)
-      end = new Date(endDate)
-      end.setHours(23, 59, 59, 999) // Include full end date
+      const [sy, sm, sd] = startDate.split('-').map(Number)
+      start = new Date(sy, sm - 1, sd, 0, 0, 0)
+      const [ey, em, ed] = endDate.split('-').map(Number)
+      end = new Date(ey, em - 1, ed, 23, 59, 59, 999)
     }
 
     // Build where clause
@@ -59,9 +58,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Add area filter if provided
+    // Add area filter if provided (filter by mainAreaId on the log itself)
     if (areaId) {
-      whereClause.card = { areaId }
+      whereClause.mainAreaId = areaId
     }
 
     // Add factura filter if provided
@@ -269,17 +268,15 @@ totalValueCell.border = { top: { style: 'medium' }, bottom: { style: 'medium' },
     // Return as downloadable file
     const response = new NextResponse(buffer)
     response.headers.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response.headers.set('Content-Disposition', `attachment; filename="reporte_${startDate}_${endDate}.xlsx"`)
+    const filenameBase = factura ? `reporte_factura_${factura}` : `reporte_${startDate}_${endDate}`
+    response.headers.set('Content-Disposition', `attachment; filename="${filenameBase}.xlsx"`)
     
     return response
 
   } catch (error) {
-    console.error('Error generating report:', error)
     return NextResponse.json(
       { error: 'Failed to generate report' },
       { status: 500 }
     )
-  } finally {
-    await prisma.$disconnect()
   }
 }

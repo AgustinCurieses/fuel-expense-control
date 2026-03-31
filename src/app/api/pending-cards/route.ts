@@ -3,7 +3,6 @@ import { prisma } from '@/lib/database'
 
 export async function GET() {
   try {
-    console.log('=== FETCHING PENDING CARDS ===')
     
     // Get all pending fuel logs with dominio field
     const pendingLogs = await prisma.fuelLog.findMany({
@@ -24,7 +23,6 @@ export async function GET() {
       }
     })
 
-    console.log(`Found ${pendingLogs.length} pending logs`)
 
     // Group by card number and get most recent dominio
     const pendingCardsMap = new Map<string, { cardNumber: string; count: number; identification: string | null }>()
@@ -43,7 +41,6 @@ export async function GET() {
     }
 
     const result = Array.from(pendingCardsMap.values())
-    console.log(`Returning ${result.length} unique pending cards`)
 
     return NextResponse.json(result)
   } catch (error) {

@@ -26,7 +26,6 @@ export class AuthService {
 
     if (email === 'admin' && password === 'admin') {
       const user = this.MOCK_USER
-      console.log('AuthService - Login successful, saving user:', user)
       this.setUser(user)
       return user
     }
@@ -44,12 +43,9 @@ export class AuthService {
     
     try {
       const userStr = localStorage.getItem(this.USER_KEY)
-      console.log('AuthService - Getting user from localStorage:', userStr)
       const user = userStr ? JSON.parse(userStr) : null
-      console.log('AuthService - Parsed user:', user)
       return user
     } catch (error) {
-      console.log('AuthService - Error parsing user:', error)
       return null
     }
   }
@@ -60,11 +56,9 @@ export class AuthService {
 
   private static setUser(user: User): void {
     if (typeof window !== 'undefined') {
-      console.log('AuthService - Setting user in localStorage:', user)
       localStorage.setItem(this.USER_KEY, JSON.stringify(user))
       // Verify it was saved
       const saved = localStorage.getItem(this.USER_KEY)
-      console.log('AuthService - User saved successfully:', saved)
     }
   }
 

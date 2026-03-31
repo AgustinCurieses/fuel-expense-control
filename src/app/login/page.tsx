@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Fuel, Lock, Mail, Eye, EyeOff } from 'lucide-react'
-import { AuthService } from '@/lib/auth'
 import { useToastContext } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/Button'
@@ -23,28 +22,17 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      console.log('Login page - Attempting login with:', { email, password })
-      
       // Use the AuthContext login method to update the global state
       await login(email, password)
       success('¡Bienvenido!', 'Sesión iniciada exitosamente')
-      
-      console.log('Login page - Login successful, redirecting...')
-      
+
       // Redirect to dashboard immediately
       router.push('/')
     } catch (err) {
-      console.log('Login page - Login failed:', err)
       error('Inicio de Sesión Fallido', err instanceof Error ? err.message : 'Credenciales inválidas')
     } finally {
       setIsLoading(false)
     }
-  }
-
-  // Test function to check localStorage
-  const testLocalStorage = () => {
-    console.log('Test - localStorage available:', typeof localStorage !== 'undefined')
-    console.log('Test - Current user:', AuthService.getCurrentUser())
   }
 
   return (
@@ -124,21 +112,6 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Demo Credentials */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h3 className="text-sm font-medium text-blue-900 mb-2">Credenciales de Demostración</h3>
-            <div className="text-sm text-blue-800 space-y-1">
-              <p><strong>Usuario:</strong> admin</p>
-              <p><strong>Contraseña:</strong> admin</p>
-            </div>
-            <button
-              type="button"
-              onClick={testLocalStorage}
-              className="mt-3 text-xs text-blue-600 hover:text-blue-800 underline"
-            >
-              Probar localStorage
-            </button>
-          </div>
         </div>
 
         {/* Footer */}

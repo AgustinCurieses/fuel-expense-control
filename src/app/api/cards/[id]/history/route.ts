@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/database'
 
 export async function GET(
   request: NextRequest,
@@ -24,12 +22,9 @@ export async function GET(
     return NextResponse.json(history)
 
   } catch (error) {
-    console.error('Error fetching card history:', error)
     return NextResponse.json(
       { error: 'Failed to fetch card history' },
       { status: 500 }
     )
-  } finally {
-    await prisma.$disconnect()
   }
 }

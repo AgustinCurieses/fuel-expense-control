@@ -7,6 +7,7 @@ export type AuditAction =
   | 'ASSIGN_CARD'
   | 'CREATE_USER'
   | 'UPDATE_USER'
+  | 'DELETE_USER'
   | 'DEACTIVATE_USER'
   | 'SAVE_FACTURA_TOTAL'
 

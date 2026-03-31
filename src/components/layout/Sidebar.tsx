@@ -14,7 +14,8 @@ import {
   Fuel,
   TrendingUp,
   AlertTriangle,
-  Shield
+  Shield,
+  ShieldCheck
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -82,13 +83,14 @@ const sidebarItems: SidebarItem[] = [
     label: 'Administración',
     icon: <Shield className="w-5 h-5" />,
     href: '/admin'
+  },
+  {
+    id: 'superadmin',
+    label: 'Super Admin',
+    icon: <ShieldCheck className="w-5 h-5" />,
+    href: '/superadmin'
   }
 ]
-
-interface SidebarProps {
-  isOpen: boolean
-  onToggle: () => void
-}
 
 export function Sidebar({ isOpen, onToggle, currentUser }: SidebarProps) {
   const pathname = usePathname()
@@ -160,7 +162,7 @@ export function Sidebar({ isOpen, onToggle, currentUser }: SidebarProps) {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-gray-900">{currentUser?.name || 'Cargando...'}</p>
-                <p className="text-xs text-gray-500">{currentUser?.email || 'cargando@ejemplo.com'}</p>
+                <p className="text-xs text-gray-500">{currentUser?.email}</p>
               </div>
             </div>
           </div>

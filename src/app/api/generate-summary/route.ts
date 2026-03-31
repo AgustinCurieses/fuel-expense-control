@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import * as ExcelJS from 'exceljs'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/database'
 
 function formatARS(amount: number): string {
   return '$ ' + amount.toFixed(2)
@@ -122,9 +120,10 @@ export async function GET(request: NextRequest) {
     } else if (factura) {
       currWhere.factura = factura
     } else if (startDate && endDate) {
-      const s = new Date(startDate)
-      const e = new Date(endDate)
-      e.setHours(23, 59, 59, 999)
+      const [sy, sm, sd] = startDate.split('-').map(Number)
+      const [ey, em, ed] = endDate.split('-').map(Number)
+      const s = new Date(sy, sm - 1, sd, 0, 0, 0)
+      const e = new Date(ey, em - 1, ed, 23, 59, 59, 999)
       currWhere.date = { gte: s, lte: e }
     }
 

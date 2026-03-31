@@ -1,10 +1,22 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Menu, LogOut } from 'lucide-react'
+import { usePathname } from 'next/navigation'
 import { Sidebar } from './Sidebar'
 import { useAuth } from '@/contexts/AuthContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+
+const routeTitles: Record<string, string> = {
+  '/': 'Panel de Control',
+  '/import': 'Cargar Datos',
+  '/reports': 'Reportes',
+  '/alerts': 'Alertas',
+  '/areas': 'Gestión de Áreas',
+  '/cards': 'Tarjetas',
+  '/settings/mapper': 'Configuración',
+  '/admin': 'Administración'
+}
 
 interface MainLayoutProps {
   children: React.ReactNode
@@ -13,32 +25,19 @@ interface MainLayoutProps {
 export function MainLayout({ children }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { user, logout } = useAuth()
-  const [currentUser, setCurrentUser] = useState<{ name: string | null; email: string | null }>({ name: null, email: null })
+  const pathname = usePathname()
 
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const response = await fetch('/api/auth/me')
-        if (response.ok) {
-          const userData = await response.json()
-          setCurrentUser({
-            name: userData.name,
-            email: userData.email
-          })
-        }
-      } catch (error) {
-        console.error('Error fetching current user:', error)
-      }
-    }
-
-    fetchCurrentUser()
-  }, [])
+  const pageTitle = routeTitles[pathname] ?? 'Panel de Control'
 
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50 flex">
-        <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} currentUser={currentUser} />
-        
+        <Sidebar
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          currentUser={{ name: user?.name ?? null, email: user?.email ?? null }}
+        />
+
         {/* Main Content Area */}
         <div className="flex-1 lg:ml-0">
           {/* Top Header */}
@@ -51,17 +50,17 @@ export function MainLayout({ children }: MainLayoutProps) {
                 >
                   <Menu className="w-5 h-5" />
                 </button>
-                <h2 className="text-2xl font-semibold text-gray-900">Panel de Control</h2>
+                <h2 className="text-2xl font-semibold text-gray-900">{pageTitle}</h2>
               </div>
-              
+
               <div className="flex items-center space-x-4">
                 <div className="text-sm text-gray-500">
                   Última actualización: {new Date().toLocaleDateString()}
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">{currentUser?.name || 'Cargando...'}</p>
-                    <p className="text-xs text-gray-500">{currentUser?.email || 'cargando@ejemplo.com'}</p>
+                    <p className="text-sm font-medium text-gray-900">{user?.name || ''}</p>
+                    <p className="text-xs text-gray-500">{user?.email || ''}</p>
                   </div>
                   <button
                     onClick={logout}

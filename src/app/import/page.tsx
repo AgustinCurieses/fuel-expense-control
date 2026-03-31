@@ -18,43 +18,35 @@ export default function ImportPage() {
   const [importResult, setImportResult] = useState<any>(null)
 
   const handleFileSelect = async (file: File) => {
-    console.log('=== IMPORT PAGE FILE HANDLER TRIGGERED ===')
-    console.log('File selected:', file.name)
     
     setSelectedFile(file)
     setError('')
     setCurrentStep('processing')
     setIsProcessing(true)
-    console.log('Step changed to: processing')
 
     try {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('useAlternativeImporte', 'false') // Default to PVP for now
 
-      console.log('About to fetch /api/import-excel from import page...')
       
       const response = await fetch('/api/import-excel', {
         method: 'POST',
         body: formData
       })
 
-      console.log('Response received:', response.status, response.statusText)
 
       if (!response.ok) {
         const error = await response.json()
-        console.log('Response error:', error)
         throw new Error(error.error || 'Import failed')
       }
 
       const result = await response.json()
-      console.log('Import result:', result)
       setImportResult(result)
       
       // Small delay to ensure smooth transition
       await new Promise(resolve => setTimeout(resolve, 100))
       setCurrentStep('complete')
-      console.log('Step changed to: complete (success)')
       
     } catch (err) {
       console.error('Import error:', err)
@@ -68,10 +60,8 @@ export default function ImportPage() {
         warnings: []
       })
       setCurrentStep('complete') // Show complete step even with errors
-      console.log('Step changed to: complete (error)')
     } finally {
       setIsProcessing(false)
-      console.log('Processing set to false')
     }
   }
 

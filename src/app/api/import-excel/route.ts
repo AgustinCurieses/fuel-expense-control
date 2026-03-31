@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import * as XLSX from 'xlsx'
 import { logAction } from '@/lib/audit'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/database'
 
 // Helper function to resolve card area based on history
 async function getCardAreaAtDate(cardId: string, date: Date) {
@@ -80,26 +78,19 @@ export async function POST(request: NextRequest) {
           acc[mapping.internalField] = mapping.rawColumnName
           return acc
         }, {} as typeof mappings)
-        console.log('Loaded mappings from database:', mappings)
       } else {
-        console.log('No settings found, using default mappings')
       }
 
       // Update importe column if alternative is selected
       if (useAlternativeImporte) {
         mappings.importe = mappings.importeYER
-        console.log('Using alternative importe column:', mappings.importe)
       }
     } catch (error) {
-      console.warn('Could not load import settings, using defaults:', error)
       // Silently fall back to defaults - don't crash the import
     }
 
     // Create column index map
     const headers = data[0] as string[]
-    console.log('=== EXCEL IMPORT DEBUG LOGS ===')
-    console.log('1. RAW HEADERS FROM EXCEL:', headers)
-    console.log('2. MAPPINGS BEING USED:', mappings)
     
     const columnIndexMap: Record<string, number> = {}
     
@@ -109,19 +100,15 @@ export async function POST(request: NextRequest) {
       )
       if (index !== -1) {
         columnIndexMap[field] = index
-        console.log(`3. FOUND COLUMN: ${field} -> ${columnName} at index ${index}`)
       } else {
-        console.log(`3. MISSING COLUMN: ${field} -> ${columnName}`)
       }
     })
     
-    console.log('4. COLUMN INDEX MAP RESULT:', columnIndexMap)
 
     // Validate required columns - ONLY tarjeta and importe are strictly required
     const requiredFields = ['tarjeta', 'importe']
     const missingFields = requiredFields.filter(field => columnIndexMap[field] === undefined)
     
-    console.log('5. REQUIRED FIELDS CHECK:', { requiredFields, missingFields })
     
     if (missingFields.length > 0) {
       const missingFieldDetails = missingFields.map(field => {
@@ -129,7 +116,6 @@ export async function POST(request: NextRequest) {
         return `Campo "${field}" - Columna esperada: "${expectedColumn}"`
       })
       
-      console.log('6. VALIDATION FAILED - MISSING FIELDS:', missingFieldDetails)
       
       return NextResponse.json(
         { 
@@ -144,7 +130,6 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    console.log('7. VALIDATION PASSED - ALL REQUIRED FIELDS FOUND')
 
     // Get all cards for lookup
     const cards = await prisma.card.findMany({
