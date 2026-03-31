@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Download, FileSpreadsheet, Calendar, MapPin, Filter, Printer, TrendingUp, Upload, Settings } from 'lucide-react'
+import { Download, FileSpreadsheet, Calendar, MapPin, Filter, Printer, TrendingUp, Upload, Settings, CheckCircle } from 'lucide-react'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
+import { ToastComponent, useToast } from '@/components/ui/Toast'
 import { FuelLog, Card, MainArea, SubArea, ImportSettings, ImportMapping, ImportResult } from '@/types'
 
 export default function ReportsPage() {
@@ -24,7 +25,11 @@ export default function ReportsPage() {
   const [facturaTotal, setFacturaTotal] = useState<any>(null)
   const [totalOficial, setTotalOficial] = useState<string>('')
   const [isSavingTotal, setIsSavingTotal] = useState(false)
+  const [validacionFactura, setValidacionFactura] = useState<string>('')
+  const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast()
   const [isExporting, setIsExporting] = useState(false)
+  const [showSummaryModal, setShowSummaryModal] = useState(false)
+  const [selectedSummaryMonth, setSelectedSummaryMonth] = useState<string>('')
   const [isImporting, setIsImporting] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
@@ -117,8 +122,14 @@ export default function ReportsPage() {
   }
 
   const handleSaveTotalOficial = async () => {
-    if (!facturaFilter || !totalOficial) {
-      alert('Por favor ingrese el total oficial')
+    if (!validacionFactura || !totalOficial) {
+      toastError('Datos incompletos', 'Seleccione una factura e ingrese el total oficial')
+      return
+    }
+
+    const parsed = parseFloat(totalOficial.replace(/\./g, '').replace(',', '.'))
+    if (isNaN(parsed) || parsed <= 0) {
+      toastError('Monto inválido', 'Ingrese un número mayor a cero')
       return
     }
 
@@ -126,25 +137,23 @@ export default function ReportsPage() {
     try {
       const response = await fetch('/api/facturas/total', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          factura: facturaFilter,
-          totalOficial: parseFloat(totalOficial.replace(',', '.'))
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ factura: validacionFactura, totalOficial: parsed })
       })
 
       if (response.ok) {
         const data = await response.json()
         setFacturaTotal(data)
-        alert('Total oficial guardado correctamente')
+        // Refresh factura list to update hasTotal indicators
+        const facturasRes = await fetch('/api/facturas')
+        if (facturasRes.ok) setAvailableFacturas(await facturasRes.json())
+        toastSuccess('Total guardado', `Factura ${validacionFactura} validada correctamente`)
       } else {
-        alert('Error al guardar el total oficial')
+        toastError('Error al guardar', 'No se pudo guardar el total oficial')
       }
     } catch (error) {
       console.error('Error saving factura total:', error)
-      alert('Error al guardar el total oficial')
+      toastError('Error al guardar', 'No se pudo guardar el total oficial')
     } finally {
       setIsSavingTotal(false)
     }
@@ -242,7 +251,6 @@ export default function ReportsPage() {
 
   const handleFilterModeChange = (mode: 'period' | 'factura') => {
     setFilterMode(mode)
-    // Clear inputs when switching modes
     if (mode === 'period') {
       setFacturaFilter('')
     } else {
@@ -295,26 +303,78 @@ export default function ReportsPage() {
     }
   }
 
-  const handleGenerateSummary = async () => {
-    if (filterMode === 'period' && (!startDate || !endDate)) {
-      alert('Seleccioná un período o número de factura para generar el resumen')
-      return
+  // Derive available months from facturas: { key: "2026-01", label: "Enero 2026" }[]
+  const availableMonths = (() => {
+    const spanishMonths = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ]
+    const seen = new Map<string, string>()
+    availableFacturas.forEach(f => {
+      // Extract year/month from the label (e.g. "Primera quincena Enero 2026")
+      // Fallback: parse from the factura dates via label
+      const parts = f.label.split(' ')
+      const monthName = parts[parts.length - 2]
+      const year = parts[parts.length - 1]
+      const monthIndex = spanishMonths.indexOf(monthName)
+      if (monthIndex === -1 || !year) return
+      const key = `${year}-${String(monthIndex + 1).padStart(2, '0')}`
+      if (!seen.has(key)) {
+        seen.set(key, `${monthName} ${year}`)
+      }
+    })
+    return Array.from(seen.entries())
+      .map(([key, label]) => ({ key, label }))
+      .sort((a, b) => b.key.localeCompare(a.key))
+  })()
+
+  const handleGenerateSummary = async (monthKey?: string) => {
+    const month = monthKey ?? selectedSummaryMonth
+    if (!month) return
+
+    const spanishMonths = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ]
+
+    const getMonthKey = (label: string) => {
+      const parts = label.split(' ')
+      const monthName = parts[parts.length - 2]
+      const year = parts[parts.length - 1]
+      const idx = spanishMonths.indexOf(monthName)
+      if (idx === -1 || !year) return null
+      return `${year}-${String(idx + 1).padStart(2, '0')}`
     }
-    if (filterMode === 'factura' && !facturaFilter) {
-      alert('Seleccioná un período o número de factura para generar el resumen')
+
+    // Facturas del mes seleccionado
+    const currFacturas = availableFacturas
+      .filter(f => getMonthKey(f.label) === month)
+      .map(f => f.factura)
+
+    if (currFacturas.length === 0) {
+      alert('No hay facturas importadas para el mes seleccionado')
       return
     }
 
+    // Mes anterior
+    const [year, mon] = month.split('-').map(Number)
+    const prevDate = new Date(year, mon - 2, 1)
+    const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
+    const prevFacturas = availableFacturas
+      .filter(f => getMonthKey(f.label) === prevKey)
+      .map(f => f.factura)
+
+    const monthLabelStr = availableMonths.find(m => m.key === month)?.label ?? month
+
+    setShowSummaryModal(false)
     setIsExporting(true)
     try {
       const params = new URLSearchParams()
-      if (filterMode === 'period') {
-        params.append('startDate', startDate!)
-        params.append('endDate', endDate!)
-      } else {
-        params.append('factura', facturaFilter!)
+      params.append('facturas', currFacturas.join(','))
+      if (prevFacturas.length > 0) {
+        params.append('prevFacturas', prevFacturas.join(','))
       }
-      // NOTE: Do NOT include areaId - summary should always include all areas
+      params.append('monthLabel', monthLabelStr)
 
       const response = await fetch(`/api/generate-summary?${params.toString()}`)
       if (!response.ok) {
@@ -325,7 +385,7 @@ export default function ReportsPage() {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = 'Resumen Ejecutivo.xlsx'
+      a.download = `Resumen Ejecutivo ${monthLabelStr}.xlsx`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -387,7 +447,7 @@ export default function ReportsPage() {
               <Download className="w-4 h-4 mr-2" />
               {isExporting ? 'Generando...' : 'Generar Reporte'}
             </Button>
-            <Button onClick={handleGenerateSummary} disabled={isExporting || filteredData.length === 0}>
+            <Button onClick={() => { setSelectedSummaryMonth(''); setShowSummaryModal(true) }} disabled={isExporting}>
               <Download className="w-4 h-4 mr-2" />
               {isExporting ? 'Generando...' : 'Resumen Ejecutivo'}
             </Button>
@@ -425,7 +485,7 @@ export default function ReportsPage() {
                   onChange={(e) => setUseAlternativeImporte(e.target.checked)}
                   className="rounded border-gray-300"
                 />
-                <span className="text-sm text-gray-700">
+                <span className="text-sm text-gray-900">
                   Usar "IMP TOT YER" en lugar de "IMP TOT PVP ESTABLECIMIENTO"
                 </span>
               </label>
@@ -483,7 +543,7 @@ export default function ReportsPage() {
           
           {/* Filter Mode Selection */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">Tipo de Filtro</label>
+            <label className="block text-sm font-medium text-gray-900 mb-3">Tipo de Filtro</label>
             <div className="space-y-2">
               <label className="flex items-center space-x-3">
                 <input
@@ -494,7 +554,7 @@ export default function ReportsPage() {
                   onChange={(e) => handleFilterModeChange(e.target.value as 'period' | 'factura')}
                   className="text-blue-600 border-gray-300"
                 />
-                <span className="text-sm">Filtrar por Período</span>
+                <span className="text-sm text-gray-900">Filtrar por Período</span>
               </label>
               <label className="flex items-center space-x-3">
                 <input
@@ -505,7 +565,7 @@ export default function ReportsPage() {
                   onChange={(e) => handleFilterModeChange(e.target.value as 'period' | 'factura')}
                   className="text-blue-600 border-gray-300"
                 />
-                <span className="text-sm">Filtrar por Número de Factura</span>
+                <span className="text-sm text-gray-900">Filtrar por Número de Factura</span>
               </label>
             </div>
           </div>
@@ -551,15 +611,16 @@ export default function ReportsPage() {
                   value={facturaFilter}
                   onChange={(e) => {
                     setFacturaFilter(e.target.value)
+                    setValidacionFactura(e.target.value)
                     loadFacturaTotal(e.target.value)
                   }}
                   options={
                     availableFacturas.length > 0
-                      ? availableFacturas.map(factura => ({
-                          value: factura.factura,
-                          label: `${factura.factura} - ${factura.label}`
+                      ? availableFacturas.map(f => ({
+                          value: f.factura,
+                          label: `${f.hasTotal ? '✓ ' : ''}${f.factura} - ${f.label}`
                         }))
-                      : [{ value: '', label: 'No hay facturas disponibles', disabled: true }]
+                      : [{ value: '', label: 'No hay facturas disponibles' }]
                   }
                   disabled={availableFacturas.length === 0}
                 />
@@ -569,46 +630,71 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Invoice Total Validation - Only show when factura is selected */}
-        {filterMode === 'factura' && facturaFilter && (
+        {/* Validacion de Total de Factura */}
+        {availableFacturas.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Validación de Total de Factura</h3>
-            
-            {facturaTotal && (
-              <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-2">
-                  Total calculado desde la base de datos:
-                </p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {facturaTotal.totalCalculadoFormateado}
-                </p>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Validacion de Total de Factura</h3>
+              {facturaTotal?.totalOficial && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                  <CheckCircle className="w-4 h-4" />
+                  Validada
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <Select
+                label="Factura a Validar"
+                value={validacionFactura}
+                onChange={(e) => {
+                  setValidacionFactura(e.target.value)
+                  loadFacturaTotal(e.target.value)
+                }}
+                options={[
+                  { value: '', label: 'Seleccione una factura...' },
+                  ...availableFacturas.map(f => ({
+                    value: f.factura,
+                    label: `${f.hasTotal ? '\u2713 ' : ''}${f.factura} - ${f.label}`
+                  }))
+                ]}
+              />
+              {facturaTotal && (
+                <div className="flex flex-col justify-end">
+                  <p className="text-xs text-gray-500 mb-1">Total calculado (App)</p>
+                  <p className="text-xl font-bold text-blue-600">{facturaTotal.totalCalculadoFormateado}</p>
+                </div>
+              )}
+            </div>
+
+            {validacionFactura && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div>
+                  <Input
+                    label="Total Oficial YPF"
+                    value={totalOficial}
+                    onChange={(e) => setTotalOficial(e.target.value)}
+                    placeholder="Ej: 1234567.89"
+                    type="text"
+                    inputMode="decimal"
+                  />
+                </div>
+                <div>
+                  <Button
+                    onClick={handleSaveTotalOficial}
+                    disabled={isSavingTotal || !totalOficial}
+                    className="w-full"
+                  >
+                    {isSavingTotal ? 'Guardando...' : 'Guardar'}
+                  </Button>
+                </div>
+                <div></div>
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-              <div>
-                <Input
-                  label="Total Oficial YPF"
-                  value={totalOficial}
-                  onChange={(e) => setTotalOficial(e.target.value)}
-                  placeholder="Ingrese el total oficial de la factura"
-                />
-              </div>
-              <div>
-                <Button
-                  onClick={handleSaveTotalOficial}
-                  disabled={isSavingTotal || !totalOficial}
-                  className="w-full"
-                >
-                  {isSavingTotal ? 'Guardando...' : 'Guardar'}
-                </Button>
-              </div>
-              <div></div>
-            </div>
-
             {facturaTotal && facturaTotal.totalOficial && (
               <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h4 className="text-md font-semibold text-gray-900 mb-3">Comparación de Totales</h4>
+                <h4 className="text-md font-semibold text-gray-900 mb-3">Comparacion de Totales</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total App:</span>
@@ -621,7 +707,7 @@ export default function ReportsPage() {
                   <div className="flex justify-between pt-2 border-t border-gray-200">
                     <span className="text-gray-900 font-medium">Diferencia:</span>
                     <span className={`font-bold ${
-                      Math.abs(facturaTotal.diferencia || 0) < 1 
+                      Math.abs(facturaTotal.diferencia || 0) < 1
                         ? 'text-green-600'
                         : Math.abs(facturaTotal.diferencia || 0) <= 100
                         ? 'text-yellow-600'
@@ -635,7 +721,6 @@ export default function ReportsPage() {
             )}
           </div>
         )}
-
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
@@ -762,6 +847,51 @@ export default function ReportsPage() {
         )}
       </div>
 
+      {/* Summary Month Selector Modal */}
+      <Modal
+        isOpen={showSummaryModal}
+        onClose={() => setShowSummaryModal(false)}
+        title="Resumen Ejecutivo — Seleccionar Mes"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Seleccioná el mes para generar el Resumen Ejecutivo con todas las facturas del período.
+          </p>
+          <div className="space-y-2 max-h-72 overflow-y-auto">
+            {availableMonths.length === 0 ? (
+              <p className="text-sm text-gray-400">No hay facturas importadas.</p>
+            ) : (
+              availableMonths.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setSelectedSummaryMonth(key)}
+                  className={`w-full text-left px-4 py-3 rounded-lg border text-sm font-medium transition-colors ${
+                    selectedSummaryMonth === key
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))
+            )}
+          </div>
+          <div className="flex justify-end space-x-3 pt-2">
+            <Button variant="outline" onClick={() => setShowSummaryModal(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => handleGenerateSummary(selectedSummaryMonth)}
+              disabled={!selectedSummaryMonth || isExporting}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              {isExporting ? 'Generando...' : 'Generar'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Settings Modal - COMPLETE 11-FIELD CONFIGURATION */}
       <Modal
         isOpen={showSettings}
@@ -776,7 +906,7 @@ export default function ReportsPage() {
           
           {/* Importe Column Selection - RADIO BUTTONS */}
           <div className="bg-gray-50 p-4 rounded-lg">
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-gray-900 mb-3">
               Columna de Importe Activa
             </label>
             <div className="space-y-2">
@@ -789,7 +919,7 @@ export default function ReportsPage() {
                   onChange={(e) => setUseAlternativeImporte(e.target.value === 'YER')}
                   className="text-blue-600 border-gray-300"
                 />
-                <span className="text-sm">IMP TOT PVP ESTABLECIMIENTO (Precio en estación)</span>
+                <span className="text-sm text-gray-900">IMP TOT PVP ESTABLECIMIENTO (Precio en estación)</span>
               </label>
               <label className="flex items-center space-x-3">
                 <input
@@ -800,7 +930,7 @@ export default function ReportsPage() {
                   onChange={(e) => setUseAlternativeImporte(e.target.value === 'YER')}
                   className="text-blue-600 border-gray-300"
                 />
-                <span className="text-sm">IMP TOT YER (Precio contractual)</span>
+                <span className="text-sm text-gray-900">IMP TOT YER (Precio contractual)</span>
               </label>
             </div>
           </div>
@@ -953,6 +1083,11 @@ export default function ReportsPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Toasts */}
+      {toasts.map(toast => (
+        <ToastComponent key={toast.id} toast={toast} onClose={removeToast} />
+      ))}
     </MainLayout>
   )
 }

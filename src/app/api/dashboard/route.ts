@@ -16,36 +16,39 @@ function formatARS(amount: number): string {
 export async function GET() {
   try {
     const now = new Date()
-    const currentMonth = now.getMonth()
-    const currentYear = now.getFullYear()
-    
-    // Start and end of current month
-    const monthStart = new Date(currentYear, currentMonth, 1)
-    const monthEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999)
 
-    // 1. Gasto Total: Sum of amount for IMPORTED records this month
-    const totalSpending = await prisma.fuelLog.aggregate({
-      where: {
-        status: 'IMPORTED',
-        date: {
-          gte: monthStart,
-          lte: monthEnd
-        }
-      },
-      _sum: {
-        amount: true
-      }
+    // 1. Última factura importada y su total oficial
+    const lastFacturaLog = await prisma.fuelLog.findFirst({
+      where: { factura: { not: null }, status: 'IMPORTED' },
+      orderBy: { date: 'desc' },
+      select: { factura: true }
     })
 
-    // 2. Área Más Activa: MainArea with most FuelLog records this month
+    let lastFacturaNumber: string | null = lastFacturaLog?.factura ?? null
+    let lastFacturaTotal = 0
+
+    if (lastFacturaNumber) {
+      const facturaTotal = await prisma.facturaTotal.findUnique({
+        where: { factura: lastFacturaNumber },
+        select: { totalOficial: true }
+      })
+      if (facturaTotal) {
+        lastFacturaTotal = facturaTotal.totalOficial
+      } else {
+        const fallback = await prisma.fuelLog.aggregate({
+          where: { factura: lastFacturaNumber, status: 'IMPORTED' },
+          _sum: { totalCost: true }
+        })
+        lastFacturaTotal = fallback._sum.totalCost ?? 0
+      }
+    }
+
+    // 2. Área Más Activa: MainArea with most FuelLog records in the last factura
     const areaActivity = await prisma.fuelLog.groupBy({
       by: ['mainAreaId'],
       where: {
         status: 'IMPORTED',
-        date: {
-          gte: monthStart,
-          lte: monthEnd
-        },
+        ...(lastFacturaNumber ? { factura: lastFacturaNumber } : {}),
         mainAreaId: {
           not: null
         }
@@ -212,7 +215,8 @@ export async function GET() {
     const validFuelPrices = fuelPrices.filter(price => price !== null)
 
     return NextResponse.json({
-      totalSpending: formatARS(totalSpending._sum.amount || 0),
+      lastFactura: lastFacturaNumber,
+      lastFacturaTotal: formatARS(lastFacturaTotal),
       mostActiveArea: mostActiveAreaName,
       mostActiveAreaCount,
       pendingCards: pendingCards.length,

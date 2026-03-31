@@ -5,7 +5,8 @@ import { MainLayout } from '@/components/layout/MainLayout'
 import { TrendingUp, MapPin, CreditCard, DollarSign } from 'lucide-react'
 
 interface DashboardData {
-  totalSpending: string
+  lastFactura: string | null
+  lastFacturaTotal: string
   mostActiveArea: string
   mostActiveAreaCount: number
   pendingCards: number
@@ -39,7 +40,8 @@ interface DashboardData {
 
 export default function HomePage() {
   const [dashboardData, setDashboardData] = useState<DashboardData>({
-    totalSpending: '$ 0,00',
+    lastFactura: null,
+    lastFacturaTotal: '$ 0,00',
     mostActiveArea: 'Cargando...',
     mostActiveAreaCount: 0,
     pendingCards: 0,
@@ -118,19 +120,19 @@ export default function HomePage() {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Total Spending this Month */}
+          {/* Total Última Factura */}
           <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg shadow-sm p-6 text-white">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-blue-500 bg-opacity-30 rounded-lg">
                 <DollarSign className="w-6 h-6" />
               </div>
               <span className="text-sm bg-blue-500 bg-opacity-30 px-2 py-1 rounded">
-                Este Mes
+                {loading || !dashboardData.lastFactura ? 'Última Factura' : `Factura ${dashboardData.lastFactura}`}
               </span>
             </div>
             <div className="space-y-1">
-              <p className="text-3xl font-bold">{loading ? '$ 0,00' : dashboardData.totalSpending}</p>
-              <p className="text-blue-100 text-sm">Gasto Total</p>
+              <p className="text-3xl font-bold">{loading ? '$ 0,00' : dashboardData.lastFacturaTotal}</p>
+              <p className="text-blue-100 text-sm">Total Facturado</p>
             </div>
           </div>
 

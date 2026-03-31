@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 import * as XLSX from 'xlsx'
+import { logAction } from '@/lib/audit'
 
 const prisma = new PrismaClient()
 
@@ -332,6 +333,17 @@ export async function POST(request: NextRequest) {
     }
 
     results.success = results.failedRows === 0
+
+    await logAction({
+      action: 'IMPORT_EXCEL',
+      entity: 'FuelLog',
+      detail: {
+        imported: results.importedRows,
+        pending: results.pendingRows,
+        duplicates: results.duplicateRows,
+        failed: results.failedRows
+      }
+    })
 
     return NextResponse.json(results)
   } catch (error) {

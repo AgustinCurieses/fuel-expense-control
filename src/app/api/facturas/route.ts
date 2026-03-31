@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/database'
 
 // Spanish month names
 const spanishMonths = [
@@ -61,13 +59,20 @@ export async function GET() {
       }
     })
 
+    // Get all facturas that have an official total saved
+    const facturaTotals = await prisma.facturaTotal.findMany({
+      select: { factura: true }
+    })
+    const validatedSet = new Set(facturaTotals.map(ft => ft.factura))
+
     // Transform the data
     const result = Array.from(facturaMap.entries())
       .map(([factura, data]) => {
         return {
           factura,
           label: generateQuincenaLabel(data.dates),
-          count: data.count
+          count: data.count,
+          hasTotal: validatedSet.has(factura)
         }
       })
       .sort((a, b) => b.factura.localeCompare(a.factura)) // Sort by factura number descending

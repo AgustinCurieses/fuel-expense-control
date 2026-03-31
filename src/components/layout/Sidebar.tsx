@@ -2,18 +2,19 @@
 
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { 
-  Home, 
-  CreditCard, 
-  FileSpreadsheet, 
-  Users, 
-  MapPin, 
+import {
+  Home,
+  CreditCard,
+  FileSpreadsheet,
+  Users,
+  MapPin,
   Settings,
   Menu,
   X,
   Fuel,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  Shield
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -75,6 +76,12 @@ const sidebarItems: SidebarItem[] = [
     label: 'Configuración',
     icon: <Settings className="w-5 h-5" />,
     href: '/settings/mapper'
+  },
+  {
+    id: 'admin',
+    label: 'Administración',
+    icon: <Shield className="w-5 h-5" />,
+    href: '/admin'
   }
 ]
 
