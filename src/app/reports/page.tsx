@@ -267,25 +267,38 @@ export default function ReportsPage() {
       return `${year}-${String(idx + 1).padStart(2, '0')}`
     }
 
-    // Facturas del mes seleccionado
-    const currFacturas = availableFacturas
-      .filter(f => getMonthKey(f.label) === month)
-      .map(f => f.factura)
+    const currFacturasData = availableFacturas.filter(f => getMonthKey(f.label) === month)
+    const currFacturas = currFacturasData.map((f: any) => f.factura)
 
     if (currFacturas.length === 0) {
       alert('No hay facturas importadas para el mes seleccionado')
       return
     }
 
-    // Mes anterior
-    const [year, mon] = month.split('-').map(Number)
-    const prevDate = new Date(year, mon - 2, 1)
-    const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
-    const prevFacturas = availableFacturas
-      .filter(f => getMonthKey(f.label) === prevKey)
-      .map(f => f.factura)
+    const [yearNum, monNum] = month.split('-').map(Number)
+    const prevDate = new Date(yearNum, monNum - 2, 1)
+    const prevKey  = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
 
-    const monthLabelStr = availableMonths.find(m => m.key === month)?.label ?? month
+    let monthLabelStr: string
+    let prevFacturas: string[]
+
+    const isPartial = currFacturasData.length === 1
+
+    if (isPartial) {
+      const facturaLabel: string = currFacturasData[0].label
+      const isFirst = facturaLabel.startsWith('Primera')
+      const quincenaDisplay = isFirst ? '1ra quincena' : '2da quincena'
+      const quincenaPrefix  = isFirst ? 'Primera' : 'Segunda'
+      monthLabelStr = `${quincenaDisplay} ${spanishMonths[monNum - 1]} ${yearNum}`
+      prevFacturas  = availableFacturas
+        .filter((f: any) => getMonthKey(f.label) === prevKey && f.label.startsWith(quincenaPrefix))
+        .map((f: any) => f.factura)
+    } else {
+      monthLabelStr = availableMonths.find(m => m.key === month)?.label ?? month
+      prevFacturas  = availableFacturas
+        .filter((f: any) => getMonthKey(f.label) === prevKey)
+        .map((f: any) => f.factura)
+    }
 
     setShowSummaryModal(false)
     setIsExporting(true)
@@ -303,9 +316,9 @@ export default function ReportsPage() {
       }
 
       const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
+      const url  = window.URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href     = url
       a.download = `Resumen Ejecutivo ${monthLabelStr}.xlsx`
       document.body.appendChild(a)
       a.click()
@@ -317,6 +330,7 @@ export default function ReportsPage() {
       setIsExporting(false)
     }
   }
+
 
 
   // Calculate summary statistics (excluding PENDING rows)
