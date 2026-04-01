@@ -701,13 +701,12 @@ export default function CardsPage() {
               onChange={(value) => setFormData({ ...formData, areaId: value, subAreaId: '' })}
               options={mainAreaOptions}
               placeholder="Buscar área principal..."
-              required
             />
 
             {formData.areaId && (
               <SearchableSelect
                 label="Subárea (Opcional)"
-                value={formData.subAreaId}
+                value={formData.subAreaId ?? ''}
                 onChange={(value) => setFormData({ ...formData, subAreaId: value })}
                 options={getSubAreaOptions(formData.areaId)}
                 placeholder="Buscar subárea..."

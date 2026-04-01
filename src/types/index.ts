@@ -35,11 +35,11 @@ export interface Card {
   identification?: string | null
   areaId: string
   subAreaId?: string | null
-  userId: string
+  userId: string | null
   cardType?: string | null
   allowedFuel?: string | null
   area?: MainArea
-  subArea?: SubArea
+  subArea?: SubArea | null
   user?: User
   fuelLogs?: FuelLog[]
   createdAt: Date
@@ -61,7 +61,7 @@ export interface FuelLog {
   mainAreaId?: string | null  // Added for pending card resolution
   subAreaId?: string | null  // Added for pending card resolution
   cardNumber?: string | null  // Store card number for PENDING rows
-  userId: string
+  userId: string | null
   cardId?: string | null  // Made nullable for pending cards
   createdAt: Date
   updatedAt: Date
@@ -133,4 +133,11 @@ export interface CardFormData {
   subAreaId?: string | null
   cardType?: string
   allowedFuel?: string
+}
+
+export interface ExcelMapping {
+  dateColumn: string
+  cardNumberColumn: string
+  amountColumn: string
+  litersColumn: string
 }

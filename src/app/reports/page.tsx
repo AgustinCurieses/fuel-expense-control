@@ -52,7 +52,7 @@ export default function ReportsPage() {
 
   const loadData = async () => {
     try {
-      const [areasResponse, settingsResponse, facturasResponse, sysSettingsResponse] = await Promise.all([
+      const [areasResponse, settingsResponse, facturasResponse] = await Promise.all([
         fetch('/api/areas'),
         fetch('/api/import-settings'),
         fetch('/api/facturas')
