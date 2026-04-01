@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { MainLayout } from '@/components/layout/MainLayout'
+import { Badge } from '@/components/ui/Badge'
 import { DollarSign, Fuel, AlertTriangle } from 'lucide-react'
 
 interface DashboardData {
@@ -76,16 +77,10 @@ export default function HomePage() {
           fetch('/api/dashboard'),
           fetch('/api/alerts/fuel-type')
         ])
-        
         if (dashboardResponse.ok) {
-          const dashboardData = await dashboardResponse.json()
-          setDashboardData(prev => ({ 
-            ...prev, 
-            ...dashboardData,
-            fuelPrices: dashboardData.fuelPrices || null 
-          }))
+          const data = await dashboardResponse.json()
+          setDashboardData(prev => ({ ...prev, ...data, fuelPrices: data.fuelPrices || null }))
         }
-        
         if (alertsResponse.ok) {
           const alertsData = await alertsResponse.json()
           setDashboardData(prev => ({ ...prev, fuelTypeAlerts: alertsData }))
@@ -96,32 +91,36 @@ export default function HomePage() {
         setLoading(false)
       }
     }
-
     fetchDashboardData()
   }, [])
 
+  const hasAlerts = !loading && dashboardData.fuelTypeAlerts.length > 0
+  const totalAlerts = dashboardData.fuelTypeAlerts.reduce((t, a) => t + a.suspiciousLoads.length, 0)
+
   return (
     <MainLayout>
-      <div className="space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Total Última Factura */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="space-y-5">
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+          {/* Última Factura */}
+          <div className="bg-white rounded-lg border border-slate-200 p-5">
             <div className="flex items-start justify-between mb-4">
-              <div className="p-2.5 bg-blue-100 rounded-lg">
-                <DollarSign className="w-5 h-5 text-blue-600" />
+              <div className="p-2 bg-navy-50 rounded-lg">
+                <DollarSign className="w-5 h-5 text-navy-600" />
               </div>
-              <span className="text-xs font-medium text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+              <Badge variant="info">
                 {loading || !dashboardData.lastFactura ? 'Sin factura' : `Nº ${dashboardData.lastFactura}`}
-              </span>
+              </Badge>
             </div>
-            <div className="mb-4">
-              <p className="text-2xl font-bold text-gray-900">{loading ? '—' : dashboardData.lastFacturaTotal}</p>
-              <p className="text-sm text-gray-500 mt-0.5">Total última factura emitida</p>
-            </div>
-            <div className="pt-4 border-t border-gray-100">
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Período</p>
-              <p className="text-sm text-gray-700">
+            <p className="text-2xl font-semibold text-slate-800 font-mono">
+              {loading ? '—' : dashboardData.lastFacturaTotal}
+            </p>
+            <p className="text-sm text-slate-500 mt-0.5">Total última factura</p>
+            <div className="mt-4 pt-3 border-t border-slate-100">
+              <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-1">Período</p>
+              <p className="text-sm text-slate-600">
                 {loading ? '—' : dashboardData.lastFacturaDateRange
                   ? `${dashboardData.lastFacturaDateRange.min} — ${dashboardData.lastFacturaDateRange.max}`
                   : 'Sin datos de período'}
@@ -129,19 +128,17 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Últimos Precios de Combustible */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          {/* Precios de Combustible */}
+          <div className="bg-white rounded-lg border border-slate-200 p-5">
             <div className="flex items-start justify-between mb-4">
-              <div className="p-2.5 bg-green-100 rounded-lg">
-                <Fuel className="w-5 h-5 text-green-600" />
+              <div className="p-2 bg-navy-50 rounded-lg">
+                <Fuel className="w-5 h-5 text-navy-600" />
               </div>
-              <span className="text-xs font-medium text-green-700 bg-green-50 px-2.5 py-1 rounded-full border border-green-100">
-                Precios por Litro
-              </span>
+              <Badge variant="neutral">Precio por Litro</Badge>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {loading ? (
-                <p className="text-sm text-gray-400">Cargando...</p>
+                <p className="text-sm text-slate-400">Cargando...</p>
               ) : dashboardData.fuelPrices && dashboardData.fuelPrices.length > 0 ? (
                 dashboardData.fuelPrices
                   .sort((a, b) => {
@@ -150,99 +147,93 @@ export default function HomePage() {
                   })
                   .map((fuel, index) => (
                     <div key={index} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 truncate max-w-[140px]">{fuel.product}</span>
-                      <div className="text-right shrink-0">
-                        <span className="text-sm font-semibold text-gray-900">
-                          ${fuel.pricePerLiter.toFixed(2).replace('.', ',')}
-                        </span>
-                        <span className="text-xs text-gray-400 ml-1">/L</span>
-                      </div>
+                      <span className="text-sm text-slate-500 truncate max-w-[140px]">{fuel.product}</span>
+                      <span className="text-sm font-semibold text-slate-800 font-mono shrink-0">
+                        ${fuel.pricePerLiter.toFixed(2).replace('.', ',')}<span className="text-xs text-slate-400 font-sans"> /L</span>
+                      </span>
                     </div>
                   ))
               ) : (
-                <p className="text-sm text-gray-400">Sin datos de precios</p>
+                <p className="text-sm text-slate-400">Sin datos de precios</p>
               )}
             </div>
           </div>
 
-          {/* Alertas & Estado */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          {/* Estado del Sistema */}
+          <div className="bg-white rounded-lg border border-slate-200 p-5">
             <div className="flex items-start justify-between mb-4">
-              <div className={`p-2.5 rounded-lg ${!loading && dashboardData.fuelTypeAlerts.length > 0 ? 'bg-red-100' : 'bg-gray-100'}`}>
-                <AlertTriangle className={`w-5 h-5 ${!loading && dashboardData.fuelTypeAlerts.length > 0 ? 'text-red-600' : 'text-gray-400'}`} />
+              <div className={`p-2 rounded-lg ${hasAlerts ? 'bg-red-50' : 'bg-slate-100'}`}>
+                <AlertTriangle className={`w-5 h-5 ${hasAlerts ? 'text-red-700' : 'text-slate-400'}`} />
               </div>
-              <span className="text-xs font-medium text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-200">
-                Estado del Sistema
-              </span>
+              <Badge variant="neutral">Estado</Badge>
             </div>
-            <div className="mb-4">
-              {loading ? (
-                <p className="text-2xl font-bold text-gray-900">—</p>
-              ) : dashboardData.fuelTypeAlerts.length === 0 ? (
-                <>
-                  <p className="text-2xl font-bold text-green-600">Sin alertas</p>
-                  <p className="text-sm text-gray-500 mt-0.5">Combustibles en orden</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-2xl font-bold text-red-600">{dashboardData.fuelTypeAlerts.reduce((t, a) => t + a.suspiciousLoads.length, 0)} alertas</p>
-                  <p className="text-sm text-gray-500 mt-0.5">Cargas sospechosas detectadas</p>
-                </>
-              )}
-            </div>
-            <div className="pt-4 border-t border-gray-100 space-y-2.5">
+            {loading ? (
+              <p className="text-2xl font-semibold text-slate-800">—</p>
+            ) : hasAlerts ? (
+              <>
+                <p className="text-2xl font-semibold text-red-700 font-mono">{totalAlerts} alertas</p>
+                <p className="text-sm text-slate-500 mt-0.5">Cargas sospechosas</p>
+              </>
+            ) : (
+              <>
+                <p className="text-2xl font-semibold text-green-700">Sin alertas</p>
+                <p className="text-sm text-slate-500 mt-0.5">Combustibles en orden</p>
+              </>
+            )}
+            <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
               {!loading && dashboardData.pendingCards > 0 && (
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-amber-600">Tarjetas por asignar</span>
-                  <span className="font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                    {dashboardData.pendingCards}
-                  </span>
+                  <span className="text-slate-500">Tarjetas por asignar</span>
+                  <Badge variant="warning">{dashboardData.pendingCards}</Badge>
                 </div>
               )}
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Última importación</span>
-                <span className="text-gray-700 font-medium">{loading ? '—' : dashboardData.lastImportDate ?? 'Sin datos'}</span>
+                <span className="text-slate-500">Última importación</span>
+                <span className="text-slate-700 font-medium text-xs">
+                  {loading ? '—' : dashboardData.lastImportDate ?? 'Sin datos'}
+                </span>
               </div>
             </div>
           </div>
         </div>
+
         {/* Consumo por Secretaría */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Consumo por Secretaría</h2>
+        <div className="bg-white rounded-lg border border-slate-200">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <h2 className="text-sm font-semibold text-slate-800">Consumo por Secretaría</h2>
             {dashboardData.lastFactura && (
-              <span className="text-sm text-gray-500">Factura Nº {dashboardData.lastFactura}</span>
+              <span className="text-xs text-slate-400">Factura Nº {dashboardData.lastFactura}</span>
             )}
           </div>
           {loading ? (
-            <p className="text-center text-gray-400 py-8">Cargando...</p>
+            <p className="text-center text-slate-400 py-10 text-sm">Cargando...</p>
           ) : dashboardData.consumoPorSecretaria.length === 0 ? (
-            <p className="text-center text-gray-400 py-8">Sin datos de la última factura</p>
+            <p className="text-center text-slate-400 py-10 text-sm">Sin datos de la última factura</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wide pb-2">Secretaría</th>
-                    <th className="text-right text-xs font-medium text-gray-400 uppercase tracking-wide pb-2">Litros</th>
-                    <th className="text-right text-xs font-medium text-gray-400 uppercase tracking-wide pb-2">Importe</th>
-                    <th className="text-right text-xs font-medium text-gray-400 uppercase tracking-wide pb-2 w-36">Participación</th>
+                  <tr className="bg-navy-600">
+                    <th className="text-left text-xs font-medium text-white/80 uppercase tracking-wide px-5 py-3">Secretaría</th>
+                    <th className="text-right text-xs font-medium text-white/80 uppercase tracking-wide px-5 py-3">Litros</th>
+                    <th className="text-right text-xs font-medium text-white/80 uppercase tracking-wide px-5 py-3">Importe</th>
+                    <th className="text-right text-xs font-medium text-white/80 uppercase tracking-wide px-5 py-3 w-36">Participación</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody>
                   {dashboardData.consumoPorSecretaria.map((row, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="py-2.5 text-sm text-gray-900">{row.areaName}</td>
-                      <td className="py-2.5 text-sm text-gray-500 text-right">
+                    <tr key={i} className={`border-t border-slate-100 hover:bg-slate-50 ${i % 2 === 1 ? 'bg-slate-50/50' : ''}`}>
+                      <td className="px-5 py-2.5 text-sm text-slate-800">{row.areaName}</td>
+                      <td className="px-5 py-2.5 text-sm text-slate-500 text-right font-mono">
                         {row.litros.toLocaleString('es-AR', { maximumFractionDigits: 0 })} L
                       </td>
-                      <td className="py-2.5 text-sm font-semibold text-gray-900 text-right">{row.importe}</td>
-                      <td className="py-2.5 pl-4">
+                      <td className="px-5 py-2.5 text-sm font-semibold text-slate-800 text-right font-mono">{row.importe}</td>
+                      <td className="px-5 py-2.5">
                         <div className="flex items-center justify-end gap-2">
-                          <div className="w-20 bg-gray-100 rounded-full h-1.5">
-                            <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${row.porcentaje}%` }} />
+                          <div className="w-20 bg-slate-200 rounded-full h-1.5">
+                            <div className="bg-navy-600 h-1.5 rounded-full" style={{ width: `${row.porcentaje}%` }} />
                           </div>
-                          <span className="text-xs text-gray-400 w-8 text-right">{row.porcentaje}%</span>
+                          <span className="text-xs text-slate-400 w-8 text-right font-mono">{row.porcentaje}%</span>
                         </div>
                       </td>
                     </tr>
@@ -254,28 +245,30 @@ export default function HomePage() {
         </div>
 
         {/* Últimas Facturas */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Últimas Facturas</h2>
+        <div className="bg-white rounded-lg border border-slate-200">
+          <div className="px-5 py-4 border-b border-slate-100">
+            <h2 className="text-sm font-semibold text-slate-800">Últimas Facturas</h2>
+          </div>
           {loading ? (
-            <p className="text-center text-gray-400 py-8">Cargando...</p>
+            <p className="text-center text-slate-400 py-10 text-sm">Cargando...</p>
           ) : dashboardData.ultimasFacturas.length === 0 ? (
-            <p className="text-center text-gray-400 py-8">Sin facturas importadas</p>
+            <p className="text-center text-slate-400 py-10 text-sm">Sin facturas importadas</p>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-slate-100">
               {dashboardData.ultimasFacturas.map((f, i) => (
-                <div key={i} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                <div key={i} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Factura {f.factura}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{f.minDate} — {f.maxDate}</p>
+                    <p className="text-sm font-medium text-slate-800">Factura {f.factura}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{f.minDate} — {f.maxDate}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${f.hasOficial ? 'text-green-700 bg-green-50 border-green-200' : 'text-amber-600 bg-amber-50 border-amber-200'}`}>
+                    <Badge variant={f.hasOficial ? 'success' : 'warning'}>
                       {f.hasOficial ? 'Validada' : 'Sin validar'}
-                    </span>
-                    <span className="text-sm font-semibold text-gray-900 min-w-[120px] text-right">{f.total}</span>
+                    </Badge>
+                    <span className="text-sm font-semibold text-slate-800 font-mono min-w-[120px] text-right">{f.total}</span>
                     <a
                       href={`/reports?factura=${encodeURIComponent(f.factura)}`}
-                      className="text-blue-500 hover:text-blue-700 text-sm font-medium"
+                      className="text-navy-600 hover:text-navy-700 text-sm font-medium"
                     >
                       Ver →
                     </a>
@@ -285,6 +278,7 @@ export default function HomePage() {
             </div>
           )}
         </div>
+
       </div>
     </MainLayout>
   )

@@ -361,15 +361,15 @@ export default function ReportsPage() {
     <MainLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Importación y Reportes</h1>
-            <p className="text-gray-600">Importe datos de Excel y genere reportes por área</p>
+            <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Reportes</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Consulte y exporte datos por área o factura</p>
           </div>
-          <div className="flex space-x-3">
-            <Button onClick={handleGenerateReport} disabled={isExporting || fuelLogs.length === 0}>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Button variant="outline" onClick={handleGenerateReport} disabled={isExporting || fuelLogs.length === 0}>
               <Download className="w-4 h-4 mr-2" />
-              {isExporting ? 'Generando...' : 'Generar Reporte'}
+              {isExporting ? 'Generando...' : 'Reporte Detallado'}
             </Button>
             <Button onClick={() => { setSelectedSummaryMonth(''); setShowSummaryModal(true) }} disabled={isExporting}>
               <Download className="w-4 h-4 mr-2" />
@@ -379,36 +379,36 @@ export default function ReportsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg border border-slate-200 p-5">
           {/* Header row: title + mode toggle */}
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-            <div className="flex items-center space-x-2">
-              <Filter className="w-5 h-5 text-gray-500" />
-              <h2 className="text-lg font-semibold text-gray-900">Filtros</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-slate-400" />
+              <h2 className="text-sm font-semibold text-slate-800">Filtros</h2>
             </div>
-            <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm font-medium">
+            <div className="flex rounded-md border border-slate-200 overflow-hidden text-sm font-medium">
               <button
                 onClick={() => handleFilterModeChange('period')}
                 className={clsx(
-                  'flex items-center gap-1.5 px-4 py-2 transition-colors',
+                  'flex items-center gap-1.5 px-3 py-1.5 transition-colors',
                   filterMode === 'period'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                    ? 'bg-navy-600 text-white'
+                    : 'bg-white text-slate-600 hover:bg-slate-50'
                 )}
               >
-                <Calendar className="w-4 h-4" />
+                <Calendar className="w-3.5 h-3.5" />
                 Por Período
               </button>
               <button
                 onClick={() => handleFilterModeChange('factura')}
                 className={clsx(
-                  'flex items-center gap-1.5 px-4 py-2 border-l border-gray-200 transition-colors',
+                  'flex items-center gap-1.5 px-3 py-1.5 border-l border-slate-200 transition-colors',
                   filterMode === 'factura'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                    ? 'bg-navy-600 text-white'
+                    : 'bg-white text-slate-600 hover:bg-slate-50'
                 )}
               >
-                <FileSpreadsheet className="w-4 h-4" />
+                <FileSpreadsheet className="w-3.5 h-3.5" />
                 Por Factura
               </button>
             </div>
@@ -469,42 +469,42 @@ export default function ReportsPage() {
           </div>
 
           {/* Active filter badges + action buttons */}
-          <div className="mt-5 pt-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
+          <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
               {selectedArea && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-navy-50 text-navy-700 border border-navy-200">
                   {mainAreas.find(a => a.id === selectedArea)?.name}
-                  <button onClick={() => setSelectedArea('')} className="ml-0.5 hover:text-blue-600">
+                  <button onClick={() => setSelectedArea('')} className="ml-0.5 hover:text-navy-900">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
               )}
               {filterMode === 'period' && startDate && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-navy-50 text-navy-700 border border-navy-200">
                   Desde {startDate.split('-').reverse().join('/')}
-                  <button onClick={() => setStartDate('')} className="ml-0.5 hover:text-blue-600">
+                  <button onClick={() => setStartDate('')} className="ml-0.5 hover:text-navy-900">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
               )}
               {filterMode === 'period' && endDate && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-navy-50 text-navy-700 border border-navy-200">
                   Hasta {endDate.split('-').reverse().join('/')}
-                  <button onClick={() => setEndDate('')} className="ml-0.5 hover:text-blue-600">
+                  <button onClick={() => setEndDate('')} className="ml-0.5 hover:text-navy-900">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
               )}
               {filterMode === 'factura' && facturaFilter && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-navy-50 text-navy-700 border border-navy-200">
                   Factura {facturaFilter}
-                  <button onClick={() => setFacturaFilter('')} className="ml-0.5 hover:text-blue-600">
+                  <button onClick={() => setFacturaFilter('')} className="ml-0.5 hover:text-navy-900">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
               )}
               {fuelLogs.length > 0 && (
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
                   {fuelLogs.length} registro{fuelLogs.length !== 1 ? 's' : ''}
                 </span>
               )}
@@ -526,86 +526,41 @@ export default function ReportsPage() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Hash className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Registros</p>
-                <p className="text-xl font-bold text-gray-900">{summary.recordCount.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <DollarSign className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Importe Total</p>
-                <p className="text-xl font-bold text-gray-900">${summary.totalAmount.toFixed(2)}</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[
+            { icon: <Hash className="w-4 h-4 text-navy-600" />,     label: 'Registros',      value: summary.recordCount.toLocaleString('es-AR') },
+            { icon: <DollarSign className="w-4 h-4 text-navy-600" />,label: 'Importe Total',  value: `$${summary.totalAmount.toFixed(2)}` },
+            { icon: <Fuel className="w-4 h-4 text-navy-600" />,      label: 'Litros Totales', value: summary.totalLiters.toFixed(1) },
+            { icon: <TrendingUp className="w-4 h-4 text-navy-600" />,label: 'Precio Prom./L', value: `$${summary.avgPricePerLiter.toFixed(2)}` },
+            { icon: <CreditCard className="w-4 h-4 text-navy-600" />,label: 'Tarjetas',       value: summary.uniqueCards },
+          ].map((item, i) => (
+            <div key={i} className="bg-white rounded-lg border border-slate-200 p-4 flex items-center gap-3">
+              <div className="p-2 bg-navy-50 rounded-lg flex-shrink-0">{item.icon}</div>
+              <div className="min-w-0">
+                <p className="text-xs text-slate-500 truncate">{item.label}</p>
+                <p className="text-lg font-semibold text-slate-800 font-mono">{item.value}</p>
               </div>
             </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Fuel className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Litros Totales</p>
-                <p className="text-xl font-bold text-gray-900">{summary.totalLiters.toFixed(1)}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Precio Promedio/L</p>
-                <p className="text-xl font-bold text-gray-900">${summary.avgPricePerLiter.toFixed(2)}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <CreditCard className="w-5 h-5 text-red-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Tarjetas Únicas</p>
-                <p className="text-xl font-bold text-gray-900">{summary.uniqueCards}</p>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Data Table */}
         {fuelLogs.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Datos Importados</h2>
+          <div className="bg-white rounded-lg border border-slate-200">
+            <div className="px-5 py-4 border-b border-slate-100">
+              <h2 className="text-sm font-semibold text-slate-800">Datos Importados</h2>
             </div>
-            
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tarjeta</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Área</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subárea</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Importe</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Litros</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ubicación</th>
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-navy-600">
+                    <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Fecha</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Tarjeta</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Área</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Subárea</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Importe</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Litros</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Ubicación</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">

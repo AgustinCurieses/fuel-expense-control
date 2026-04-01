@@ -143,10 +143,10 @@ export default function AreasPage() {
     <MainLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Gestión de Secretarías</h1>
-            <p className="text-gray-600">Administre secretarías y sus dependencias</p>
+            <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Gestión de Secretarías</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Administre secretarías y sus dependencias</p>
           </div>
           <Button onClick={() => { setEditingArea(null); setFormData({ name: '', type: 'main', parentAreaId: '' }); setIsModalOpen(true) }}>
             <Plus className="w-4 h-4 mr-2" />
@@ -156,72 +156,72 @@ export default function AreasPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-4">
-            <div className="p-2.5 bg-blue-50 rounded-lg">
-              <Building2 className="w-6 h-6 text-blue-600" />
+          <div className="bg-white rounded-lg border border-slate-200 p-4 flex items-center gap-4">
+            <div className="p-2.5 bg-navy-50 rounded-lg">
+              <Building2 className="w-5 h-5 text-navy-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{mainAreas.length}</p>
-              <p className="text-sm text-gray-500">Secretarías</p>
+              <p className="text-2xl font-semibold text-slate-800 font-mono">{mainAreas.length}</p>
+              <p className="text-sm text-slate-500">Secretarías</p>
             </div>
           </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-4">
-            <div className="p-2.5 bg-green-50 rounded-lg">
-              <Network className="w-6 h-6 text-green-600" />
+          <div className="bg-white rounded-lg border border-slate-200 p-4 flex items-center gap-4">
+            <div className="p-2.5 bg-navy-50 rounded-lg">
+              <Network className="w-5 h-5 text-navy-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{subAreas.length}</p>
-              <p className="text-sm text-gray-500">Dependencias</p>
+              <p className="text-2xl font-semibold text-slate-800 font-mono">{subAreas.length}</p>
+              <p className="text-sm text-slate-500">Dependencias</p>
             </div>
           </div>
         </div>
 
         {/* Accordion list */}
         {isLoading ? (
-          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center text-sm text-gray-400">
+          <div className="bg-white rounded-lg border border-slate-200 p-12 text-center text-sm text-slate-400">
             Cargando...
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-100">
+          <div className="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
             {mainAreas.map((area) => {
               const deps = subAreas.filter(s => s.parentAreaId === area.id)
               const expanded = expandedAreas.has(area.id)
               return (
                 <div key={area.id}>
                   {/* Secretaría row */}
-                  <div className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 group">
+                  <div className="flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 group">
                     <button
                       onClick={() => toggleExpand(area.id)}
                       className="flex items-center gap-3 flex-1 min-w-0 text-left"
                     >
                       {expanded
-                        ? <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
-                        : <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                        ? <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                        : <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
                       }
-                      <Building2 className="w-4 h-4 text-blue-500 shrink-0" />
-                      <span className="font-semibold text-gray-900 truncate">{area.name}</span>
-                      <span className="ml-2 shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                      <Building2 className="w-4 h-4 text-navy-600 shrink-0" />
+                      <span className="font-medium text-slate-800 truncate">{area.name}</span>
+                      <span className="ml-2 shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-navy-50 text-navy-600 border border-navy-200">
                         {deps.length} {deps.length === 1 ? 'dependencia' : 'dependencias'}
                       </span>
                     </button>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-3">
                       <button
                         onClick={() => openNewDependencia(area.id)}
-                        className="p-1.5 text-green-600 hover:bg-green-50 rounded"
+                        className="p-1.5 text-slate-500 hover:text-navy-600 hover:bg-navy-50 rounded-md transition-colors"
                         title="Agregar dependencia"
                       >
                         <Plus className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleEdit(area)}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                        className="p-1.5 text-slate-500 hover:text-navy-600 hover:bg-navy-50 rounded-md transition-colors"
                         title="Editar secretaría"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(area)}
-                        className="p-1.5 text-red-500 hover:bg-red-50 rounded"
+                        className="p-1.5 text-slate-500 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
                         title="Eliminar secretaría"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -231,32 +231,32 @@ export default function AreasPage() {
 
                   {/* Dependencias */}
                   {expanded && (
-                    <div className="bg-gray-50 border-t border-gray-100">
+                    <div className="bg-slate-50 border-t border-slate-100">
                       {deps.length === 0 ? (
-                        <div className="pl-14 pr-5 py-3 text-sm text-gray-400 italic">
+                        <div className="pl-14 pr-5 py-3 text-sm text-slate-400 italic">
                           Sin dependencias
                         </div>
                       ) : (
                         deps.map((dep, idx) => (
                           <div
                             key={dep.id}
-                            className={`flex items-center justify-between pl-14 pr-5 py-3 hover:bg-gray-100 group/dep${idx < deps.length - 1 ? ' border-b border-gray-100' : ''}`}
+                            className={`flex items-center justify-between pl-14 pr-5 py-2.5 hover:bg-slate-100 group/dep${idx < deps.length - 1 ? ' border-b border-slate-100' : ''}`}
                           >
                             <div className="flex items-center gap-2 min-w-0">
-                              <div className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
-                              <span className="text-sm text-gray-700 truncate">{dep.name}</span>
+                              <div className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                              <span className="text-sm text-slate-700 truncate">{dep.name}</span>
                             </div>
                             <div className="flex items-center gap-1 opacity-0 group-hover/dep:opacity-100 transition-opacity shrink-0 ml-3">
                               <button
                                 onClick={() => handleEdit(dep)}
-                                className="p-1.5 text-blue-600 hover:bg-blue-100 rounded"
+                                className="p-1.5 text-slate-500 hover:text-navy-600 hover:bg-navy-50 rounded-md transition-colors"
                                 title="Editar dependencia"
                               >
                                 <Edit className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => handleDelete(dep)}
-                                className="p-1.5 text-red-500 hover:bg-red-100 rounded"
+                                className="p-1.5 text-slate-500 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
                                 title="Eliminar dependencia"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />

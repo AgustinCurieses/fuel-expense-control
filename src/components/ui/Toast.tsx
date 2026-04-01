@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle, AlertCircle, X } from 'lucide-react'
+import { CheckCircle, AlertCircle, X, Info } from 'lucide-react'
 import { clsx } from 'clsx'
 
 export interface Toast {
@@ -19,65 +19,44 @@ export function ToastComponent({ toast, onClose }: ToastProps) {
   const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
-    // Trigger animation
     const timer = setTimeout(() => setIsVisible(true), 10)
-
-    // Auto close
     const duration = toast.duration || 5000
     const closeTimer = setTimeout(() => {
       setIsVisible(false)
       setTimeout(() => onClose(toast.id), 300)
     }, duration)
-
-    return () => {
-      clearTimeout(timer)
-      clearTimeout(closeTimer)
-    }
+    return () => { clearTimeout(timer); clearTimeout(closeTimer) }
   }, [toast.id, toast.duration, onClose])
 
-  const icons = {
-    success: <CheckCircle className="w-5 h-5 text-green-500" />,
-    error: <AlertCircle className="w-5 h-5 text-red-500" />,
-    warning: <AlertCircle className="w-5 h-5 text-yellow-500" />,
-    info: <AlertCircle className="w-5 h-5 text-blue-500" />
-  }
-
-  const bgColors = {
-    success: 'bg-green-50 border-green-200',
-    error: 'bg-red-50 border-red-200',
-    warning: 'bg-yellow-50 border-yellow-200',
-    info: 'bg-blue-50 border-blue-200'
+  const config = {
+    success: { icon: <CheckCircle className="w-4 h-4 text-green-600" />, bar: 'bg-green-600' },
+    error:   { icon: <AlertCircle className="w-4 h-4 text-red-700" />,   bar: 'bg-red-700' },
+    warning: { icon: <AlertCircle className="w-4 h-4 text-amber-600" />, bar: 'bg-amber-500' },
+    info:    { icon: <Info className="w-4 h-4 text-navy-600" />,          bar: 'bg-navy-600' },
   }
 
   return (
-    <div
-      className={clsx(
-        'fixed top-4 right-4 z-50 max-w-sm w-full bg-white border rounded-lg shadow-lg p-4 transition-all duration-300 transform',
-        bgColors[toast.type],
-        isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
-      )}
-    >
-      <div className="flex items-start">
-        <div className="flex-shrink-0">
-          {icons[toast.type]}
+    <div className={clsx(
+      'fixed top-4 right-4 z-50 max-w-sm w-full bg-white border border-slate-200 rounded-lg shadow-md overflow-hidden transition-all duration-300 transform',
+      isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+    )}>
+      <div className={`h-0.5 ${config[toast.type].bar}`} />
+      <div className="flex items-start p-4 gap-3">
+        <div className="flex-shrink-0 mt-0.5">
+          {config[toast.type].icon}
         </div>
-        <div className="ml-3 flex-1">
-          <h3 className="text-sm font-medium text-gray-900">{toast.title}</h3>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-slate-800">{toast.title}</p>
           {toast.message && (
-            <p className="mt-1 text-sm text-gray-500">{toast.message}</p>
+            <p className="mt-0.5 text-xs text-slate-500">{toast.message}</p>
           )}
         </div>
-        <div className="ml-4 flex-shrink-0">
-          <button
-            onClick={() => {
-              setIsVisible(false)
-              setTimeout(() => onClose(toast.id), 300)
-            }}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        <button
+          onClick={() => { setIsVisible(false); setTimeout(() => onClose(toast.id), 300) }}
+          className="flex-shrink-0 text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
     </div>
   )
@@ -88,8 +67,7 @@ export function useToast() {
 
   const addToast = (toast: Omit<Toast, 'id'>) => {
     const id = Date.now().toString()
-    const newToast = { ...toast, id }
-    setToasts(prev => [...prev, newToast])
+    setToasts(prev => [...prev, { ...toast, id }])
     return id
   }
 
@@ -109,13 +87,5 @@ export function useToast() {
   const info = (title: string, message?: string, duration?: number) =>
     addToast({ type: 'info', title, message, duration })
 
-  return {
-    toasts,
-    addToast,
-    removeToast,
-    success,
-    error,
-    warning,
-    info
-  }
+  return { toasts, addToast, removeToast, success, error, warning, info }
 }

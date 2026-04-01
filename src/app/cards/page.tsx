@@ -529,93 +529,93 @@ export default function CardsPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left">
-                    <button onClick={() => handleSort('cardNumber')} className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700">
+            <table className="min-w-full">
+              <thead>
+                <tr className="bg-navy-600">
+                  <th className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('cardNumber')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Nro. Tarjeta <SortIcon col="cardNumber" />
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left">
-                    <button onClick={() => handleSort('identification')} className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700">
+                  <th className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('identification')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Identificación <SortIcon col="identification" />
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left">
-                    <button onClick={() => handleSort('area')} className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700">
+                  <th className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('area')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Secretaría <SortIcon col="area" />
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left">
-                    <button onClick={() => handleSort('subArea')} className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700">
+                  <th className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('subArea')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Dependencia <SortIcon col="subArea" />
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left">
-                    <button onClick={() => handleSort('cardType')} className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700">
+                  <th className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('cardType')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Tipo <SortIcon col="cardType" />
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left">
-                    <button onClick={() => handleSort('allowedFuel')} className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700">
+                  <th className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('allowedFuel')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Combustible <SortIcon col="allowedFuel" />
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-5 py-3 text-right text-xs font-medium text-white/80 uppercase tracking-wider">
                     Acciones
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-slate-100">
                 {paginatedCards.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-sm text-gray-400">
+                    <td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-400">
                       No se encontraron tarjetas con los filtros aplicados.
                     </td>
                   </tr>
                 ) : paginatedCards.map((card) => (
-                  <tr key={card.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <CreditCard className="w-4 h-4 text-gray-400 mr-2 shrink-0" />
-                        <span className="text-sm font-medium text-gray-900">{card.cardNumber}</span>
+                  <tr key={card.id} className="hover:bg-slate-50">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span className="text-sm font-medium text-slate-800 font-mono">{card.cardNumber}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {card.identification || <span className="text-gray-400">—</span>}
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm text-slate-800">
+                      {card.identification || <span className="text-slate-400">—</span>}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
+                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-navy-50 text-navy-700 border border-navy-200">
                         {getAreaName(card.areaId)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       {card.subAreaId ? (
-                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-700 border border-slate-200">
                           {getSubAreaName(card.subAreaId)}
                         </span>
                       ) : (
-                        <span className="text-gray-400 text-xs">—</span>
+                        <span className="text-slate-400 text-xs">—</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 capitalize">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm text-slate-700 capitalize">
                       {card.cardType || '—'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 capitalize">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-sm text-slate-700 capitalize">
                       {card.allowedFuel || '—'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                      <button onClick={() => handleEdit(card)} className="text-blue-600 hover:text-blue-900">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                      <button onClick={() => handleEdit(card)} className="text-navy-600 hover:text-navy-800">
                         Editar
                       </button>
-                      <button onClick={() => handleReassignCard(card)} className="text-orange-600 hover:text-orange-900">
+                      <button onClick={() => handleReassignCard(card)} className="text-slate-600 hover:text-slate-900">
                         Reasignar
                       </button>
-                      <button onClick={() => handleViewHistory(card)} className="text-purple-600 hover:text-purple-900">
+                      <button onClick={() => handleViewHistory(card)} className="text-slate-600 hover:text-slate-900">
                         Historial
                       </button>
-                      <button onClick={() => handleDelete(card)} className="text-red-600 hover:text-red-900">
+                      <button onClick={() => handleDelete(card)} className="text-red-700 hover:text-red-900">
                         Eliminar
                       </button>
                     </td>
@@ -627,7 +627,7 @@ export default function CardsPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="px-6 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-600">
+            <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500">
               <span>
                 Mostrando {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredCards.length)} de {filteredCards.length}
               </span>
@@ -635,7 +635,7 @@ export default function CardsPage() {
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-3 py-1 rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-3 py-1 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   ‹
                 </button>
@@ -653,7 +653,7 @@ export default function CardsPage() {
                       <button
                         key={p}
                         onClick={() => setPage(p as number)}
-                        className={`px-3 py-1 rounded border text-sm ${page === p ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 hover:bg-gray-50'}`}
+                        className={`px-3 py-1 rounded-md border text-sm ${page === p ? 'bg-navy-600 text-white border-navy-600' : 'border-slate-200 hover:bg-slate-50'}`}
                       >
                         {p}
                       </button>
@@ -663,7 +663,7 @@ export default function CardsPage() {
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="px-3 py-1 rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-3 py-1 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   ›
                 </button>

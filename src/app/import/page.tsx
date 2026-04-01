@@ -131,171 +131,138 @@ export default function ImportPage() {
     <MainLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Importación de Excel</h1>
-            <p className="text-gray-600">Cargue y procese archivos Excel de gastos de combustible</p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Importación de Excel</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Cargue y procese archivos Excel de gastos de combustible</p>
         </div>
 
         {/* Progress Steps */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-lg border border-slate-200 p-4">
           <div className="flex items-center justify-between">
             {[
               { id: 'upload', label: 'Cargar Archivo', icon: Upload },
               { id: 'processing', label: 'Procesando', icon: Clock },
               { id: 'complete', label: 'Completado', icon: CheckCircle }
-            ].map((step, index) => (
-              <div key={step.id} className="flex items-center">
-                <div className={clsx(
-                  'flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors',
-                  currentStep === step.id
-                    ? 'bg-blue-600 border-blue-600 text-white'
-                    : (Object.keys({ upload: 1, processing: 2, complete: 3 })
-                        .indexOf(currentStep) > Object.keys({ upload: 1, processing: 2, complete: 3 })
-                        .indexOf(step.id))
-                      ? 'border-gray-300 text-gray-400'
-                      : 'border-gray-300 text-gray-400'
-                )}>
-                  {step.id === 'processing' && currentStep === 'processing' ? (
-                    <Spinner size="sm" className="text-white" />
-                  ) : (
-                    <step.icon className="w-5 h-5" />
-                  )}
+            ].map((step, index) => {
+              const stepOrder = { upload: 0, processing: 1, complete: 2 }
+              const isDone = stepOrder[currentStep as keyof typeof stepOrder] > stepOrder[step.id as keyof typeof stepOrder]
+              const isActive = currentStep === step.id
+              return (
+                <div key={step.id} className="flex items-center">
+                  <div className={clsx(
+                    'flex items-center justify-center w-9 h-9 rounded-full border-2 transition-colors',
+                    isActive ? 'bg-navy-600 border-navy-600 text-white' :
+                    isDone  ? 'bg-navy-100 border-navy-300 text-navy-600' :
+                              'border-slate-300 text-slate-400'
+                  )}>
+                    {step.id === 'processing' && currentStep === 'processing'
+                      ? <Spinner size="sm" className="text-white" />
+                      : <step.icon className="w-4 h-4" />
+                    }
+                  </div>
+                  <span className={clsx(
+                    'ml-2 text-sm font-medium',
+                    isActive || isDone ? 'text-navy-600' : 'text-slate-400'
+                  )}>
+                    {step.label}
+                  </span>
+                  {index < 2 && <ArrowRight className="w-4 h-4 text-slate-300 mx-4" />}
                 </div>
-                <span className={clsx(
-                  'ml-2 text-sm font-medium',
-                  currentStep === step.id
-                    ? 'text-blue-600'
-                    : (Object.keys({ upload: 1, processing: 2, complete: 3 })
-                        .indexOf(currentStep) > Object.keys({ upload: 1, processing: 2, complete: 3 })
-                        .indexOf(step.id))
-                      ? 'text-blue-600'
-                      : 'text-gray-400'
-                )}>
-                  {step.label}
-                </span>
-                {index < 2 && (
-                  <ArrowRight className="w-4 h-4 text-gray-400 mx-4" />
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 
         {/* Error Display */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex">
-              <AlertTriangle className="w-5 h-5 text-red-400 mr-2" />
-              <p className="text-sm text-red-800">{error}</p>
-            </div>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-red-800">{error}</p>
           </div>
         )}
 
         {/* Upload Step */}
         {currentStep === 'upload' && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Cargar Archivo Excel</h2>
-            <DropZone
-              onFileSelect={handleFileSelect}
-              isProcessing={isProcessing}
-              error={error}
-            />
+          <div className="bg-white rounded-lg border border-slate-200 p-6">
+            <h2 className="text-sm font-semibold text-slate-800 mb-4">Cargar Archivo Excel</h2>
+            <DropZone onFileSelect={handleFileSelect} isProcessing={isProcessing} error={error} />
           </div>
         )}
 
         {/* Processing Step */}
         {currentStep === 'processing' && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12">
-            <div className="text-center">
-              <Spinner size="lg" className="mx-auto mb-4" />
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Procesando Archivo Excel</h2>
-              <p className="text-gray-600">Analizando datos y procesando registros...</p>
-              {selectedFile && (
-                <p className="text-sm text-gray-500 mt-2">Archivo: {selectedFile.name}</p>
-              )}
-            </div>
+          <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
+            <Spinner size="lg" className="mx-auto mb-4" />
+            <h2 className="text-base font-semibold text-slate-800 mb-1">Procesando Archivo</h2>
+            <p className="text-sm text-slate-500">Analizando datos y procesando registros...</p>
+            {selectedFile && <p className="text-xs text-slate-400 mt-2">{selectedFile.name}</p>}
           </div>
         )}
 
         {/* Complete Step */}
         {currentStep === 'complete' && importResult && (
-          <div className="space-y-6">
-            <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-6 ${
-              importResult.success ? 'border-green-200' : 'border-red-200'
-            }`}>
-              <div className="flex items-center space-x-3 mb-4">
-                {importResult.success ? (
-                  <CheckCircle className="w-6 h-6 text-green-600" />
-                ) : (
-                  <AlertTriangle className="w-6 h-6 text-red-600" />
-                )}
-                <h2 className={`text-lg font-semibold ${
-                  importResult.success ? 'text-green-800' : 'text-red-800'
-                }`}>
+          <div className="space-y-5">
+            <div className={`bg-white rounded-lg border p-6 ${importResult.success ? 'border-green-200' : 'border-red-200'}`}>
+              <div className="flex items-center gap-3 mb-5">
+                {importResult.success
+                  ? <CheckCircle className="w-5 h-5 text-green-600" />
+                  : <AlertTriangle className="w-5 h-5 text-red-700" />
+                }
+                <h2 className={`text-base font-semibold ${importResult.success ? 'text-green-800' : 'text-red-800'}`}>
                   {importResult.success ? 'Importación Exitosa' : 'Importación con Errores'}
                 </h2>
               </div>
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <p className="text-2xl font-bold text-gray-900">{importResult.totalRows}</p>
-                    <p className="text-sm text-gray-600">Total de Filas</p>
-                  </div>
-                  <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <p className="text-2xl font-bold text-green-600">{importResult.importedRows}</p>
-                    <p className="text-sm text-green-600">Filas Importadas</p>
-                  </div>
-                  <div className="text-center p-4 bg-red-50 rounded-lg">
-                    <p className="text-2xl font-bold text-red-600">{importResult.failedRows}</p>
-                    <p className="text-sm text-red-600">Filas Fallidas</p>
-                  </div>
-                  {importResult.updatedRows > 0 && (
-                    <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <p className="text-2xl font-bold text-blue-600">{importResult.updatedRows}</p>
-                      <p className="text-sm text-blue-600">Registros Actualizados</p>
-                    </div>
-                  )}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="text-center p-4 bg-slate-50 rounded-lg border border-slate-100">
+                  <p className="text-2xl font-semibold text-slate-800 font-mono">{importResult.totalRows}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Total filas</p>
                 </div>
-
+                <div className="text-center p-4 bg-green-50 rounded-lg border border-green-100">
+                  <p className="text-2xl font-semibold text-green-700 font-mono">{importResult.importedRows}</p>
+                  <p className="text-xs text-green-600 mt-0.5">Importadas</p>
+                </div>
+                <div className="text-center p-4 bg-red-50 rounded-lg border border-red-100">
+                  <p className="text-2xl font-semibold text-red-700 font-mono">{importResult.failedRows}</p>
+                  <p className="text-xs text-red-600 mt-0.5">Fallidas</p>
+                </div>
                 {importResult.updatedRows > 0 && (
-                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-blue-800">
-                      <strong>{importResult.updatedRows} registros actualizados con número de factura</strong>
-                    </p>
-                  </div>
-                )}
-
-                {importResult.errors.length > 0 && (
-                  <div className="mt-4">
-                    <h3 className="font-medium text-red-800 mb-2">Errores:</h3>
-                    <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
-                      {importResult.errors.map((error: string, index: number) => (
-                        <li key={index}>{error}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {importResult.warnings.length > 0 && (
-                  <div className="mt-4">
-                    <h3 className="font-medium text-yellow-800 mb-2">Advertencias:</h3>
-                    <ul className="list-disc list-inside text-sm text-yellow-700 space-y-1">
-                      {importResult.warnings.map((warning: string, index: number) => (
-                        <li key={index}>{warning}</li>
-                      ))}
-                    </ul>
+                  <div className="text-center p-4 bg-navy-50 rounded-lg border border-navy-100">
+                    <p className="text-2xl font-semibold text-navy-600 font-mono">{importResult.updatedRows}</p>
+                    <p className="text-xs text-navy-500 mt-0.5">Actualizadas</p>
                   </div>
                 )}
               </div>
+
+              {importResult.updatedRows > 0 && (
+                <div className="mt-4 p-3 bg-navy-50 border border-navy-100 rounded-lg">
+                  <p className="text-sm text-navy-700">
+                    <strong>{importResult.updatedRows} registros</strong> actualizados con número de factura
+                  </p>
+                </div>
+              )}
+
+              {importResult.errors.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-semibold text-red-800 mb-2">Errores:</h3>
+                  <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                    {importResult.errors.map((err: string, i: number) => <li key={i}>{err}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {importResult.warnings.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-semibold text-amber-800 mb-2">Advertencias:</h3>
+                  <ul className="list-disc list-inside text-sm text-amber-700 space-y-1">
+                    {importResult.warnings.map((w: string, i: number) => <li key={i}>{w}</li>)}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-center">
-              <Button onClick={handleReset}>
-                Cargar Otro Archivo
-              </Button>
+              <Button onClick={handleReset}>Cargar Otro Archivo</Button>
             </div>
           </div>
         )}

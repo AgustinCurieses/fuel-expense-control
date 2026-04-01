@@ -151,10 +151,10 @@ export default function AlertsPage() {
       <div className="space-y-6">
 
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Alertas de Combustible</h1>
-            <p className="text-gray-600">Detección de cargas con combustible no autorizado por período o factura</p>
+            <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Alertas de Combustible</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Detección de cargas con combustible no autorizado</p>
           </div>
           {hasFilter && alerts.length > 0 && (
             <Button onClick={() => handleExport()} disabled={isExportingAll} variant="outline">
@@ -165,19 +165,19 @@ export default function AlertsPage() {
         </div>
 
         {/* Filter bar */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-lg border border-slate-200 p-4">
           <div className="flex items-center gap-4 flex-wrap">
-            <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <Filter className="w-4 h-4 text-slate-400 flex-shrink-0" />
 
             {/* Mode toggle */}
-            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            <div className="flex rounded-md border border-slate-200 overflow-hidden">
               <button
                 onClick={() => setFilterMode('factura')}
                 className={clsx(
-                  'px-4 py-2 text-sm font-medium transition-colors',
+                  'px-3 py-1.5 text-sm font-medium transition-colors',
                   filterMode === 'factura'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                    ? 'bg-navy-600 text-white'
+                    : 'bg-white text-slate-600 hover:bg-slate-50'
                 )}
               >
                 Por Factura
@@ -185,10 +185,10 @@ export default function AlertsPage() {
               <button
                 onClick={() => setFilterMode('period')}
                 className={clsx(
-                  'px-4 py-2 text-sm font-medium transition-colors border-l border-gray-200',
+                  'px-3 py-1.5 text-sm font-medium transition-colors border-l border-slate-200',
                   filterMode === 'period'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                    ? 'bg-navy-600 text-white'
+                    : 'bg-white text-slate-600 hover:bg-slate-50'
                 )}
               >
                 Por Período
@@ -233,18 +233,20 @@ export default function AlertsPage() {
 
         {/* Prompt when no filter applied yet */}
         {!loading && alerts.length === 0 && !hasFilter && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-            <AlertTriangle className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">Seleccione una factura o período para ver las alertas</p>
-            <p className="text-sm text-gray-400 mt-1">Las alertas se analizan dentro del período seleccionado</p>
+          <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
+            <AlertTriangle className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-600 font-medium">Seleccione una factura o período</p>
+            <p className="text-sm text-slate-400 mt-1">Las alertas se analizan dentro del período seleccionado</p>
           </div>
         )}
 
         {/* No alerts for the selected period */}
         {!loading && hasFilter && alerts.length === 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-green-200 p-12 text-center">
-            <div className="text-4xl mb-3">✅</div>
-            <p className="text-lg font-medium text-green-700">Sin alertas en este período</p>
+          <div className="bg-white rounded-lg border border-green-200 p-12 text-center">
+            <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span className="text-green-600 text-xl">✓</span>
+            </div>
+            <p className="text-base font-semibold text-green-700">Sin alertas en este período</p>
             <p className="text-sm text-green-500 mt-1">No se detectaron cargas con combustible no autorizado</p>
           </div>
         )}
@@ -254,61 +256,55 @@ export default function AlertsPage() {
           <>
             {/* KPI cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                    <AlertTriangle className="w-5 h-5 text-red-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-gray-900">{totalLoads}</p>
-                    <p className="text-sm text-gray-500">Cargas sospechosas</p>
-                  </div>
+              <div className="bg-white rounded-lg border border-slate-200 p-5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-red-700" />
+                </div>
+                <div>
+                  <p className="text-2xl font-semibold text-slate-800 font-mono">{totalLoads}</p>
+                  <p className="text-sm text-slate-500">Cargas sospechosas</p>
                 </div>
               </div>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                    <Car className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-gray-900">{totalCards}</p>
-                    <p className="text-sm text-gray-500">Tarjetas afectadas</p>
-                  </div>
+              <div className="bg-white rounded-lg border border-slate-200 p-5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+                  <Car className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-semibold text-slate-800 font-mono">{totalCards}</p>
+                  <p className="text-sm text-slate-500">Tarjetas afectadas</p>
                 </div>
               </div>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
-                    <Building2 className="w-5 h-5 text-yellow-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-gray-900">{totalAreas}</p>
-                    <p className="text-sm text-gray-500">Secretarías con alertas</p>
-                  </div>
+              <div className="bg-white rounded-lg border border-slate-200 p-5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-navy-50 flex items-center justify-center flex-shrink-0">
+                  <Building2 className="w-5 h-5 text-navy-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-semibold text-slate-800 font-mono">{totalAreas}</p>
+                  <p className="text-sm text-slate-500">Secretarías con alertas</p>
                 </div>
               </div>
             </div>
 
             {/* Per-area sections */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               {areaGroups.map(group => (
-                <div key={group.mainArea} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div key={group.mainArea} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
                   {/* Section header */}
                   <div
-                    className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="flex items-center justify-between px-5 py-3.5 cursor-pointer hover:bg-slate-50 transition-colors"
                     onClick={() => toggleArea(group.mainArea)}
                   >
                     <div className="flex items-center gap-3">
                       {expandedAreas.has(group.mainArea)
-                        ? <ChevronDown className="w-4 h-4 text-gray-400" />
-                        : <ChevronRight className="w-4 h-4 text-gray-400" />
+                        ? <ChevronDown className="w-4 h-4 text-slate-400" />
+                        : <ChevronRight className="w-4 h-4 text-slate-400" />
                       }
-                      <div>
-                        <span className="font-semibold text-gray-900">{group.mainArea}</span>
-                        <span className="ml-3 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-slate-800">{group.mainArea}</span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
                           {group.totalLoads} {group.totalLoads === 1 ? 'alerta' : 'alertas'}
                         </span>
-                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
                           {group.alerts.length} {group.alerts.length === 1 ? 'tarjeta' : 'tarjetas'}
                         </span>
                       </div>
@@ -325,38 +321,38 @@ export default function AlertsPage() {
 
                   {/* Table */}
                   {expandedAreas.has(group.mainArea) && (
-                    <div className="border-t border-gray-100 overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-100">
-                        <thead className="bg-gray-50">
-                          <tr>
+                    <div className="border-t border-slate-100 overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead>
+                          <tr className="bg-navy-600">
                             {['Dominio', 'Dependencia', 'Comb. Permitido', 'Producto Cargado', 'Fecha', 'Litros', 'Importe', 'Remito'].map(h => (
-                              <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                              <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-white/80 uppercase tracking-wider whitespace-nowrap">
                                 {h}
                               </th>
                             ))}
                           </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-100">
+                        <tbody className="divide-y divide-slate-100">
                           {group.alerts.flatMap(alert =>
                             alert.suspiciousLoads.map((load, li) => (
-                              <tr key={`${alert.cardNumber}-${li}`} className="hover:bg-gray-50">
-                                <td className="px-4 py-2.5 text-sm font-medium text-gray-900">{alert.dominio}</td>
-                                <td className="px-4 py-2.5 text-sm text-gray-700">{alert.subArea}</td>
+                              <tr key={`${alert.cardNumber}-${li}`} className="hover:bg-slate-50">
+                                <td className="px-4 py-2.5 text-sm font-medium text-slate-800">{alert.dominio}</td>
+                                <td className="px-4 py-2.5 text-sm text-slate-600">{alert.subArea}</td>
                                 <td className="px-4 py-2.5 text-sm">
                                   <span className={clsx(
-                                    'inline-flex px-2 py-0.5 text-xs font-medium rounded-full',
+                                    'inline-flex px-2 py-0.5 text-xs font-medium rounded-full border',
                                     alert.primaryGroup === 'nafta'
-                                      ? 'bg-green-100 text-green-800'
-                                      : 'bg-blue-100 text-blue-800'
+                                      ? 'bg-green-50 text-green-700 border-green-200'
+                                      : 'bg-navy-50 text-navy-700 border-navy-200'
                                   )}>
                                     {alert.primaryGroup === 'nafta' ? 'Nafta' : 'Gasoil'}
                                   </span>
                                 </td>
                                 <td className="px-4 py-2.5 text-sm text-red-700 font-medium">{load.product}</td>
-                                <td className="px-4 py-2.5 text-sm text-gray-700 whitespace-nowrap">{load.date}</td>
-                                <td className="px-4 py-2.5 text-sm text-gray-700 text-right">{load.liters.toFixed(2)}</td>
-                                <td className="px-4 py-2.5 text-sm text-gray-700 text-right whitespace-nowrap">{formatARS(load.amount)}</td>
-                                <td className="px-4 py-2.5 text-sm text-gray-500">{load.remito}</td>
+                                <td className="px-4 py-2.5 text-sm text-slate-600 whitespace-nowrap">{load.date}</td>
+                                <td className="px-4 py-2.5 text-sm text-slate-600 text-right font-mono">{load.liters.toFixed(2)}</td>
+                                <td className="px-4 py-2.5 text-sm text-slate-800 text-right font-mono whitespace-nowrap">{formatARS(load.amount)}</td>
+                                <td className="px-4 py-2.5 text-sm text-slate-400">{load.remito}</td>
                               </tr>
                             ))
                           )}
@@ -369,9 +365,9 @@ export default function AlertsPage() {
             </div>
 
             {/* Footer note */}
-            <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
-              <p className="text-sm text-gray-500">
-                <strong>Nota:</strong> Se detectan cargas con combustible diferente al autorizado en la tarjeta. Vehículos con permiso &quot;ambos&quot; y maquinaria no generan alertas.
+            <div className="bg-slate-50 rounded-lg border border-slate-200 p-4">
+              <p className="text-sm text-slate-500">
+                <strong className="text-slate-700">Nota:</strong> Se detectan cargas con combustible diferente al autorizado en la tarjeta. Vehículos con permiso &quot;ambos&quot; y maquinaria no generan alertas.
               </p>
             </div>
           </>
@@ -379,8 +375,8 @@ export default function AlertsPage() {
 
         {/* Loading state */}
         {loading && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-            <p className="text-gray-500">Analizando cargas del período seleccionado...</p>
+          <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
+            <p className="text-sm text-slate-500">Analizando cargas del período seleccionado...</p>
           </div>
         )}
 
