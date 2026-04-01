@@ -1,31 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server'
+import * as ExcelJS from 'exceljs'
 import { prisma } from '@/lib/database'
-import { Workbook, Worksheet } from 'exceljs'
+import { getSystemSettings } from '@/lib/system-settings'
 
-// Argentine currency format function
+// Argentine currency format
 function formatARS(value: number): string {
   const parts = value.toFixed(2).split('.')
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
   return '$ ' + parts[0] + ',' + parts[1]
 }
 
-// Medium border style
-const mediumBorder = {
-  top: { style: 'medium' as const },
-  bottom: { style: 'medium' as const },
-  left: { style: 'medium' as const },
-  right: { style: 'medium' as const }
+// Colors (matching executive summary palette)
+const NAVY  = 'FF1F3864'
+const LT_BLU = 'FFBDD7EE'
+const WHITE  = 'FFFFFFFF'
+const BLCK   = 'FF000000'
+
+function safeMerge(ws: ExcelJS.Worksheet, range: string) {
+  try { ws.unMergeCells(range) } catch {}
+  ws.mergeCells(range)
+}
+
+type StyleOpts = {
+  val?: ExcelJS.CellValue
+  bold?: boolean
+  size?: number
+  color?: string
+  bg?: string
+  h?: ExcelJS.Alignment['horizontal']
+  v?: ExcelJS.Alignment['vertical']
+  border?: 'medium' | 'thin'
+  wrap?: boolean
+}
+
+function S(cell: ExcelJS.Cell, opts: StyleOpts) {
+  if (opts.val !== undefined) cell.value = opts.val
+  cell.font = {
+    name: 'Calibri',
+    bold:  opts.bold  ?? false,
+    size:  opts.size  ?? 11,
+    color: { argb: opts.color ?? BLCK }
+  }
+  if (opts.bg) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: opts.bg } }
+  cell.alignment = {
+    horizontal: opts.h    ?? 'center',
+    vertical:   opts.v    ?? 'middle',
+    wrapText:   opts.wrap ?? false
+  }
+  if (opts.border) {
+    const b = { style: opts.border as ExcelJS.BorderStyle }
+    cell.border = { top: b, bottom: b, left: b, right: b }
+  }
 }
 
 export async function GET(request: NextRequest) {
   try {
+    const sysSettings = await getSystemSettings()
+    const orgName = sysSettings.org_name.toUpperCase()
+
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get('startDate')
-    const endDate = searchParams.get('endDate')
-    const areaId = searchParams.get('areaId')
-    const factura = searchParams.get('factura')
+    const endDate   = searchParams.get('endDate')
+    const areaId    = searchParams.get('areaId')
+    const factura   = searchParams.get('factura')
 
-    // Validation: either factura OR both dates are required
     if (!factura && (!startDate || !endDate)) {
       return NextResponse.json(
         { error: 'Either factura number or both startDate and endDate are required' },
@@ -33,7 +71,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Parse dates only if provided (use split to avoid UTC offset issues)
+    // Parse dates
     let start, end
     if (startDate && endDate) {
       const [sy, sm, sd] = startDate.split('-').map(Number)
@@ -43,235 +81,151 @@ export async function GET(request: NextRequest) {
     }
 
     // Build where clause
-    const whereClause: any = {
-      status: 'IMPORTED',
-      cardId: {
-        not: null
-      }
-    }
+    const whereClause: any = { status: 'IMPORTED', cardId: { not: null } }
+    if (start && end) whereClause.date = { gte: start, lte: end }
+    if (areaId)       whereClause.mainAreaId = areaId
+    if (factura)      whereClause.factura = factura
 
-    // Add date range filter only if dates are provided
-    if (start && end) {
-      whereClause.date = {
-        gte: start,
-        lte: end
-      }
-    }
-
-    // Add area filter if provided (filter by mainAreaId on the log itself)
-    if (areaId) {
-      whereClause.mainAreaId = areaId
-    }
-
-    // Add factura filter if provided
-    if (factura) {
-      whereClause.factura = factura
-    }
-
-    // Get all fuel logs with IMPORTED status
     const fuelLogs = await prisma.fuelLog.findMany({
       where: whereClause,
-      include: {
-        card: {
-          include: {
-            area: true,
-            subArea: true
-          }
-        },
-        user: true
-      },
-      orderBy: {
-        date: 'asc'
+      include: { card: { include: { area: true, subArea: true } }, user: true },
+      orderBy: { date: 'asc' }
+    })
+
+    const areaName = fuelLogs.length > 0 && fuelLogs[0].card?.area?.name
+      ? fuelLogs[0].card.area.name
+      : 'Área Desconocida'
+
+    const formatDateTitle = (dateStr: string): string => {
+      const [year, month, day] = dateStr.split('-')
+      return `${day}/${month}/${year}`
+    }
+    const formatDateDisplay = (d: Date): string => {
+      const dd = String(d.getDate()).padStart(2, '0')
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      return `${dd}/${mm}/${d.getFullYear()}`
+    }
+
+    const title = factura
+      ? `${areaName} — Factura ${factura}`
+      : `${areaName} — Período ${formatDateTitle(startDate!)} al ${formatDateTitle(endDate!)}`
+
+    // ── Workbook ────────────────────────────────────────────────────────────
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet(areaName, {
+      pageSetup: {
+        paperSize: 9,
+        orientation: 'landscape',
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0,
+        margins: { left: 0.5, right: 0.5, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 }
       }
     })
 
-    // Get the area name for title
-    const areaName = fuelLogs.length > 0 && fuelLogs[0].card?.area?.name ? fuelLogs[0].card.area.name : 'Área Desconocida'
-
-    // Create workbook
-    const workbook = new Workbook()
-
-    // Create single worksheet for the selected area
-    const worksheet = workbook.addWorksheet(areaName)
-
-    // Setup page configuration
-    worksheet.pageSetup.orientation = 'landscape'
-    worksheet.pageSetup.paperSize = 9 // A4
-    worksheet.pageSetup.margins = {
-      left: 0.278,
-      right: 0.014,
-      top: 0.75,
-      bottom: 0.75,
-      header: 0.417,
-      footer: 0.417
-    }
-
-    // Set column widths
-    worksheet.columns = [
-      { width: 24.29 },  // A - Dependencia
-      { width: 18 },     // B - Tarjeta
-      { width: 32.29 },  // C - Conductor Autorizado
-      { width: 14.29 },  // D - Dominio
-      { width: 13.86 },  // E - Producto
-      { width: 7.43 },   // F - Litros
-      { width: 13 },     // G - Importe
-      { width: 18.14 },  // H - Fecha
-      { width: 39.57 },  // I - Establecimiento
-      { width: 9.86 },   // J - Localidad
-      { width: 13.43 }   // K - Remito
+    ws.columns = [
+      { width: 24.29 }, // A - Dependencia
+      { width: 18 },    // B - Tarjeta
+      { width: 32.29 }, // C - Conductor Autorizado
+      { width: 14.29 }, // D - Dominio
+      { width: 13.86 }, // E - Producto
+      { width: 7.43 },  // F - Litros
+      { width: 17 },    // G - Importe
+      { width: 13 },    // H - Fecha
+      { width: 39.57 }, // I - Establecimiento
+      { width: 9.86 },  // J - Localidad
+      { width: 15 }     // K - Remito
     ]
 
-    // Row 1 - Title (merged A1:H1)
-    worksheet.mergeCells('A1:H1')
-    const titleCell = worksheet.getCell('A1')
-    // Format dates as DD/MM/YYYY without timezone conversion
-    const formatDateTitle = (dateStr: string): string => {
-      const [year, month, day] = dateStr.split('-')
-      return `${day}/${month}/${year}` 
-    }
-    
-    const formattedStartDate = startDate ? formatDateTitle(startDate) : ''
-    const formattedEndDate = endDate ? formatDateTitle(endDate) : ''
-    
-    const title = factura 
-      ? `${areaName} - Factura ${factura}`
-      : `${areaName} - Periodo ${formattedStartDate} Al ${formattedEndDate}`
-    titleCell.value = title
-    titleCell.font = { name: 'Calibri', size: 11, bold: true }
-    titleCell.alignment = { horizontal: 'center' }
-    titleCell.border = mediumBorder
+    const C  = (col: string, row: number) => ws.getCell(`${col}${row}`)
+    const M  = (rng: string) => safeMerge(ws, rng)
+    const RH = (row: number, h: number) => { ws.getRow(row).height = h }
 
-    // Clear cells I1, J1, K1
-    worksheet.getCell('I1').value = null
-    worksheet.getCell('J1').value = null
-    worksheet.getCell('K1').value = null
+    // ── Row 1: Org name header ──────────────────────────────────────────────
+    M('A1:K1')
+    S(C('A', 1), { val: orgName, bold: true, size: 14, color: WHITE, bg: NAVY, border: 'medium' })
+    RH(1, 22)
 
-    // Row 2 - Headers
+    // ── Row 2: Report title ─────────────────────────────────────────────────
+    M('A2:K2')
+    S(C('A', 2), { val: title, bold: true, size: 11, color: WHITE, bg: NAVY, h: 'left', border: 'medium' })
+    RH(2, 18)
+
+    // ── Row 3: Column headers ───────────────────────────────────────────────
     const headers = [
-      'Dependencia', 'Tarjeta', 'Conductor Autorizado', 'Dominio', 
-      'Producto', 'Litros', 'Importe', 'Fecha', 
+      'Dependencia', 'Tarjeta', 'Conductor Autorizado', 'Dominio',
+      'Producto', 'Litros', 'Importe', 'Fecha',
       'Establecimiento', 'Localidad', 'Remito'
     ]
-    
-    const headerRow = worksheet.getRow(2)
-    headers.forEach((header, index) => {
-      const cell = headerRow.getCell(index + 1)
-      cell.value = header
-      cell.font = { name: 'Calibri', size: 11, bold: true }
-      cell.alignment = { horizontal: 'center' }
-      cell.border = mediumBorder
+    const colLetters = ['A','B','C','D','E','F','G','H','I','J','K']
+    headers.forEach((header, i) => {
+      S(C(colLetters[i], 3), {
+        val: header, bold: true, size: 11,
+        color: WHITE, bg: NAVY, border: 'medium'
+      })
     })
+    RH(3, 16)
 
-    // Data rows (3 to N)
-    let currentRow = 3
-
+    // ── Data rows ───────────────────────────────────────────────────────────
+    let currentRow = 4
     for (const log of fuelLogs) {
-      const row = worksheet.getRow(currentRow)
+      const row = ws.getRow(currentRow)
 
-      // Column A - Dependencia (SubArea name)
-      const depCell = row.getCell(1)
-      depCell.value = log.card?.subArea?.name || ''
-      depCell.font = { name: 'Calibri', size: 11 }
-      depCell.alignment = { horizontal: 'left' }
-      depCell.border = mediumBorder
+      const setCell = (colIdx: number, value: ExcelJS.CellValue, halign: ExcelJS.Alignment['horizontal'] = 'left') => {
+        const cell = row.getCell(colIdx)
+        S(cell, { val: value, size: 11, h: halign, border: 'thin' })
+      }
 
-      // Column B - Tarjeta
-      const tarjetaCell = row.getCell(2)
-      tarjetaCell.value = log.card?.cardNumber || ''
-      tarjetaCell.font = { name: 'Calibri', size: 11 }
-      tarjetaCell.border = mediumBorder
-
-      // Column C - Conductor Autorizado
-      const conductorCell = row.getCell(3)
-      conductorCell.value = log.conductor || ''
-      conductorCell.font = { name: 'Calibri', size: 11 }
-      conductorCell.border = mediumBorder
-
-      // Column D - Dominio (vehicle plate from Excel)
-      const dominioCell = row.getCell(4)
-      dominioCell.value = log.dominio || ''
-      dominioCell.font = { name: 'Calibri', size: 11 }
-      dominioCell.border = mediumBorder
-
-      // Column E - Producto
-      const productoCell = row.getCell(5)
-      productoCell.value = log.description || ''
-      productoCell.font = { name: 'Calibri', size: 11 }
-      productoCell.border = mediumBorder
-
-      // Column F - Litros (right aligned)
-      const litrosCell = row.getCell(6)
-      litrosCell.value = log.gallons || 0
-      litrosCell.font = { name: 'Calibri', size: 11 }
-      litrosCell.alignment = { horizontal: 'right' }
-      litrosCell.border = mediumBorder
-
-      // Column G - Importe (right aligned, Argentine format as text)
-      const importeCell = row.getCell(7)
-      importeCell.value = formatARS(log.amount)
-      importeCell.font = { name: 'Calibri', size: 11 }
-      importeCell.alignment = { horizontal: 'right' }
-      importeCell.border = mediumBorder
-
-      // Column H - Fecha (formatted as DD/MM/YYYY, centered)
-      const fechaCell = row.getCell(8)
-      const date = new Date(log.date)
-      const day = String(date.getDate()).padStart(2, '0')
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const year = date.getFullYear()
-      fechaCell.value = `${day}/${month}/${year}`
-      fechaCell.font = { name: 'Calibri', size: 11 }
-      fechaCell.alignment = { horizontal: 'center' }
-      fechaCell.border = mediumBorder
-
-      // Column I - Establecimiento
-      const establecimientoCell = row.getCell(9)
-      establecimientoCell.value = log.location || ''
-      establecimientoCell.font = { name: 'Calibri', size: 11 }
-      establecimientoCell.border = mediumBorder
-
-      // Column J - Localidad
-      const localidadCell = row.getCell(10)
-      localidadCell.value = log.localidad || ''
-      localidadCell.font = { name: 'Calibri', size: 11 }
-      localidadCell.border = mediumBorder
-
-      // Column K - Remito
-      const remitoCell = row.getCell(11)
-      remitoCell.value = log.remito || ''
-      remitoCell.font = { name: 'Calibri', size: 11 }
-      remitoCell.border = mediumBorder
+      setCell(1,  log.card?.subArea?.name || '')
+      setCell(2,  log.card?.cardNumber || '')
+      setCell(3,  log.conductor || '')
+      setCell(4,  log.dominio || '')
+      setCell(5,  log.description || '')
+      setCell(6,  log.gallons || 0, 'right')
+      setCell(7,  formatARS(log.amount), 'right')
+      setCell(8,  formatDateDisplay(new Date(log.date)), 'center')
+      setCell(9,  log.location || '')
+      setCell(10, log.localidad || '')
+      setCell(11, log.remito || '', 'right')
 
       currentRow++
     }
 
-    const totalRowNumber = worksheet.rowCount + 1
-const totalImporte = fuelLogs.reduce((sum, log) => sum + (log.amount || 0), 0)
+    // ── Total row ───────────────────────────────────────────────────────────
+    const totalRow = currentRow
+    const totalImporte = fuelLogs.reduce((sum, log) => sum + (log.amount || 0), 0)
 
-worksheet.mergeCells(`A${totalRowNumber}:F${totalRowNumber}`)
+    M(`A${totalRow}:F${totalRow}`)
+    S(C('A', totalRow), {
+      val: 'Total :',
+      bold: true, size: 11, h: 'right', bg: LT_BLU, border: 'medium'
+    })
+    S(C('G', totalRow), {
+      val: formatARS(totalImporte),
+      bold: true, size: 11, h: 'right', bg: LT_BLU, border: 'medium'
+    })
+    // H–K of total row: blank, no fill, no border
+    ;['H','I','J','K'].forEach(col => {
+      const cell = C(col, totalRow)
+      cell.value = null
+      cell.fill  = { type: 'pattern', pattern: 'none' }
+      cell.border = {}
+    })
+    RH(totalRow, 16)
 
-const totalLabelCell = worksheet.getCell(`A${totalRowNumber}`)
-totalLabelCell.value = 'Total : '
-totalLabelCell.alignment = { horizontal: 'right' }
-totalLabelCell.font = { name: 'Calibri', size: 11 }
-totalLabelCell.border = { top: { style: 'medium' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
+    // ── Generate buffer ─────────────────────────────────────────────────────
+    const buffer = await wb.xlsx.writeBuffer()
 
-const totalValueCell = worksheet.getCell(`G${totalRowNumber}`)
-totalValueCell.value = formatARS(totalImporte)
-totalValueCell.alignment = { horizontal: 'right' }
-totalValueCell.font = { name: 'Calibri', size: 11 }
-totalValueCell.border = { top: { style: 'medium' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
+    const filenameBase = factura
+      ? `reporte_factura_${factura}`
+      : `reporte_${startDate}_${endDate}`
 
-    // Generate buffer
-    const buffer = await workbook.xlsx.writeBuffer()
-
-    // Return as downloadable file
-    const response = new NextResponse(buffer)
-    response.headers.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    const filenameBase = factura ? `reporte_factura_${factura}` : `reporte_${startDate}_${endDate}`
-    response.headers.set('Content-Disposition', `attachment; filename="${filenameBase}.xlsx"`)
-    
-    return response
+    return new NextResponse(buffer as ArrayBuffer, {
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="${filenameBase}.xlsx"`
+      }
+    })
 
   } catch (error) {
     return NextResponse.json(

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/database'
 
-// Helper function to format dates
 function formatDate(date: Date): string {
   const day = date.getDate().toString().padStart(2, '0')
   const month = (date.getMonth() + 1).toString().padStart(2, '0')
@@ -9,44 +8,45 @@ function formatDate(date: Date): string {
   return `${day}/${month}/${year}`
 }
 
-// Helper function to determine fuel group
 function getFuelGroup(product: string): 'nafta' | 'gasoil' | 'unknown' {
   if (!product) return 'unknown'
-  const productUpper = product.toUpperCase()
-  
-  // Group A (naftas): NAFTA SUPER or (INFINIA without DIESEL)
-  if (productUpper.includes('NAFTA') || (productUpper.includes('INFINIA') && !productUpper.includes('DIESEL'))) {
-    return 'nafta'
-  }
-
-  // Group B (gasoil): INFINIA DIESEL or D.DIESEL 500
-  if (productUpper.includes('INFINIA DIESEL') || productUpper.includes('D.DIESEL')) {
-    return 'gasoil'
-  }
-  
+  const p = product.toUpperCase()
+  if (p.includes('NAFTA') || (p.includes('INFINIA') && !p.includes('DIESEL'))) return 'nafta'
+  if (p.includes('INFINIA DIESEL') || p.includes('D.DIESEL')) return 'gasoil'
   return 'unknown'
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Get all cards that have FuelLogs with status = 'IMPORTED'
+    const { searchParams } = new URL(request.url)
+    const factura   = searchParams.get('factura')
+    const startDate = searchParams.get('startDate')
+    const endDate   = searchParams.get('endDate')
+    const areaId    = searchParams.get('areaId')
+
+    // Build the FuelLog filter
+    const logWhere: any = { status: 'IMPORTED' }
+    if (factura) {
+      logWhere.factura = factura
+    } else if (startDate && endDate) {
+      const [sy, sm, sd] = startDate.split('-').map(Number)
+      const [ey, em, ed] = endDate.split('-').map(Number)
+      logWhere.date = {
+        gte: new Date(sy, sm - 1, sd, 0, 0, 0),
+        lte: new Date(ey, em - 1, ed, 23, 59, 59, 999)
+      }
+    }
+
+    // Card-level area filter
+    const cardWhere: any = {
+      fuelLogs: { some: logWhere }
+    }
+    if (areaId) cardWhere.areaId = areaId
+
     const cardsWithLogs = await prisma.card.findMany({
-      where: {
-        fuelLogs: {
-          some: {
-            status: 'IMPORTED'
-          }
-        }
-      },
+      where: cardWhere,
       include: {
-        fuelLogs: {
-          where: {
-            status: 'IMPORTED'
-          },
-          orderBy: {
-            date: 'desc'
-          }
-        },
+        fuelLogs: { where: logWhere, orderBy: { date: 'desc' } },
         area: true,
         subArea: true
       }
@@ -54,104 +54,58 @@ export async function GET() {
 
     const alerts: any[] = []
 
-    // Process each card
     for (const card of cardsWithLogs) {
-      // Skip cards where cardType = "maquinaria" OR allowedFuel = "ambos"
-      if (card.cardType === 'maquinaria' || card.allowedFuel === 'ambos') {
-        continue
+      if (card.cardType === 'maquinaria' || card.allowedFuel === 'ambos') continue
+
+      let suspiciousLoads: any[] = []
+      let primaryGroup: 'nafta' | 'gasoil'
+
+      if (!card.cardType || !card.allowedFuel) {
+        // Fallback: determine by historical majority
+        const naftaLogs  = card.fuelLogs.filter(l => getFuelGroup(l.description || '') === 'nafta')
+        const gasoilLogs = card.fuelLogs.filter(l => getFuelGroup(l.description || '') === 'gasoil')
+        const naftaL  = naftaLogs.reduce((s, l) => s + (l.gallons || 0), 0)
+        const gasoilL = gasoilLogs.reduce((s, l) => s + (l.gallons || 0), 0)
+        if (naftaL === 0 && gasoilL === 0) continue
+        primaryGroup   = gasoilL > naftaL ? 'gasoil' : 'nafta'
+        suspiciousLoads = primaryGroup === 'nafta' ? gasoilLogs : naftaLogs
+      } else {
+        primaryGroup = card.allowedFuel === 'nafta' ? 'nafta' : 'gasoil'
+        if (card.allowedFuel === 'nafta') {
+          suspiciousLoads = card.fuelLogs.filter(l => {
+            const p = (l.description || '').toUpperCase()
+            return p.includes('DIESEL') || p.includes('D.DIESEL')
+          })
+        } else {
+          suspiciousLoads = card.fuelLogs.filter(l => {
+            const p = (l.description || '').toUpperCase()
+            return (p.includes('NAFTA') || p.includes('INFINIA')) && !p.includes('DIESEL')
+          })
+        }
       }
 
-      // For cards with null cardType or allowedFuel, use old historical analysis as fallback
-      if (!card.cardType || !card.allowedFuel) {
-        // Group fuel logs by fuel type group
-        const naftaLogs = card.fuelLogs.filter(log => getFuelGroup(log.description || '') === 'nafta')
-        const gasoilLogs = card.fuelLogs.filter(log => getFuelGroup(log.description || '') === 'gasoil')
-        
-        // Calculate total liters for each group
-        const naftaLiters = naftaLogs.reduce((sum, log) => sum + (log.gallons || 0), 0)
-        const gasoilLiters = gasoilLogs.reduce((sum, log) => sum + (log.gallons || 0), 0)
-        
-        // Determine primary group (whichever has more total liters)
-        let primaryGroup: 'nafta' | 'gasoil' = 'nafta'
-        if (gasoilLiters > naftaLiters) {
-          primaryGroup = 'gasoil'
-        }
-        
-        // If both groups have 0 liters, skip this card
-        if (naftaLiters === 0 && gasoilLiters === 0) {
-          continue
-        }
-        
-        // Check for suspicious loads (logs from opposite group)
-        const suspiciousLoads = primaryGroup === 'nafta' 
-          ? gasoilLogs  // Gasoil loads for a nafta vehicle
-          : naftaLogs   // Nafta loads for a gasoil vehicle
-        
-        // If there are suspicious loads, create an alert
-        if (suspiciousLoads.length > 0) {
-          const alert = {
-            cardNumber: card.cardNumber,
-            dominio: card.identification || 'Sin Dominio',
-            subArea: card.subArea?.name || 'Sin Dependencia',
-            mainArea: card.area?.name || 'Sin Secretaría',
-            primaryGroup: primaryGroup,
-            suspiciousLoads: suspiciousLoads.map(load => ({
-              date: formatDate(load.date),
-              product: load.description || 'Sin Producto',
-              liters: load.gallons || 0,
-              amount: load.amount || 0,
-              remito: load.remito || 'Sin Remito'
-            }))
-          }
-          
-          alerts.push(alert)
-        }
-      } else {
-        // Use new logic with cardType and allowedFuel
-        let suspiciousLoads: any[] = []
-        
-        if (card.allowedFuel === 'nafta') {
-          // Alert if any FuelLog has product "INFINIA DIESEL" or "D.DIESEL 500"
-          suspiciousLoads = card.fuelLogs.filter(log => {
-            const product = (log.description || '').toUpperCase()
-            return product.includes('DIESEL') || product.includes('D.DIESEL')
-          })
-        } else if (card.allowedFuel === 'gasoil') {
-          // Alert if any FuelLog has product "NAFTA SUPER" or "INFINIA"
-          suspiciousLoads = card.fuelLogs.filter(log => {
-            const product = (log.description || '').toUpperCase()
-            return (product.includes('NAFTA') || product.includes('INFINIA')) && !product.includes('DIESEL')
-          })
-        }
-        
-        // If there are suspicious loads, create an alert
-        if (suspiciousLoads.length > 0) {
-          const alert = {
-            cardNumber: card.cardNumber,
-            dominio: card.identification || 'Sin Dominio',
-            subArea: card.subArea?.name || 'Sin Dependencia',
-            mainArea: card.area?.name || 'Sin Secretaría',
-            primaryGroup: card.allowedFuel === 'nafta' ? 'nafta' : 'gasoil',
-            suspiciousLoads: suspiciousLoads.map(load => ({
-              date: formatDate(load.date),
-              product: load.description || 'Sin Producto',
-              liters: load.gallons || 0,
-              amount: load.amount || 0,
-              remito: load.remito || 'Sin Remito'
-            }))
-          }
-          
-          alerts.push(alert)
-        }
+      if (suspiciousLoads.length > 0) {
+        alerts.push({
+          cardNumber: card.cardNumber,
+          dominio:    card.identification || 'Sin Dominio',
+          subArea:    card.subArea?.name  || 'Sin Dependencia',
+          mainArea:   card.area?.name     || 'Sin Secretaría',
+          mainAreaId: card.areaId         || null,
+          primaryGroup,
+          suspiciousLoads: suspiciousLoads.map(l => ({
+            date:    formatDate(l.date),
+            product: l.description || 'Sin Producto',
+            liters:  l.gallons     || 0,
+            amount:  l.amount      || 0,
+            remito:  l.remito      || 'Sin Remito',
+            factura: l.factura     || null
+          }))
+        })
       }
     }
 
     return NextResponse.json(alerts)
-
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Error fetching fuel type alerts' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Error fetching fuel type alerts' }, { status: 500 })
   }
 }

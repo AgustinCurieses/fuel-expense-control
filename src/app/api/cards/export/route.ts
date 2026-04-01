@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/database'
 import ExcelJS from 'exceljs'
+import { getSystemSettings } from '@/lib/system-settings'
 
 // Helper function to format dates
 function formatDate(date: Date | null): string {
@@ -22,9 +23,13 @@ function getCurrentDate(): string {
 
 export async function GET() {
   try {
-    // Calculate date 30 days ago
+    const sysSettings = await getSystemSettings()
+    const inactivityDays = parseInt(sysSettings.card_inactivity_days) || 30
+    const orgName = sysSettings.org_name
+
+    // Calculate inactivity cutoff date
     const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - inactivityDays)
     thirtyDaysAgo.setHours(0, 0, 0, 0)
 
     // Get all cards with their areas and fuel logs
@@ -118,7 +123,7 @@ export async function GET() {
 
     // Title for active sheet
     activeSheet.mergeCells('A1:F1')
-    activeSheet.getCell('A1').value = 'Tarjetas Activas — Municipalidad de Luján'
+    activeSheet.getCell('A1').value = `Tarjetas Activas — ${orgName}`
     activeSheet.getCell('A1').font = { name: 'Calibri', size: 11, bold: true }
     activeSheet.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' }
 
@@ -185,7 +190,7 @@ export async function GET() {
 
     // Title for inactive sheet
     inactiveSheet.mergeCells('A1:G1')
-    inactiveSheet.getCell('A1').value = 'Tarjetas Inactivas — Municipalidad de Luján'
+    inactiveSheet.getCell('A1').value = `Tarjetas Inactivas — ${orgName}`
     inactiveSheet.getCell('A1').font = { name: 'Calibri', size: 11, bold: true }
     inactiveSheet.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' }
 

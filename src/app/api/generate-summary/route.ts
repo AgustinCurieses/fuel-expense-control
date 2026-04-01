@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import * as ExcelJS from 'exceljs'
 import { prisma } from '@/lib/database'
+import { getSystemSettings } from '@/lib/system-settings'
+import { createCanvas } from '@napi-rs/canvas'
 
 function formatARS(amount: number): string {
   return '$ ' + amount.toFixed(2)
@@ -98,8 +100,292 @@ function S(cell: ExcelJS.Cell, opts: StyleOpts) {
   }
 }
 
+function drawBarChart(
+  labels: string[],
+  currData: number[],
+  prevData: number[] | null,
+  width: number,
+  height: number,
+  title: string
+): Buffer | null {
+  try {
+    const canvas = createCanvas(width, height) as any
+    const ctx    = canvas.getContext('2d')
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, width, height)
+
+    const hasPrev = prevData !== null && prevData.length > 0
+    const padL = 178, padR = 40, padT = 58, padB = hasPrev ? 48 : 28
+    const cW = width - padL - padR
+    const cH = height - padT - padB
+    const n  = labels.length
+
+    const allVals = hasPrev ? [...currData, ...prevData!] : currData
+    const maxVal  = Math.max(...allVals, 1)
+
+    // Title
+    ctx.fillStyle  = '#1F3864'
+    ctx.font       = 'bold 20px sans-serif'
+    ctx.textAlign  = 'center'
+    ctx.fillText(title, width / 2, 36)
+
+    // Grid + X-axis ticks
+    ctx.lineWidth  = 1
+    ctx.font       = '13px sans-serif'
+    ctx.textAlign  = 'center'
+    for (let t = 0; t <= 5; t++) {
+      const x = padL + (t / 5) * cW
+      ctx.strokeStyle = '#E5E7EB'
+      ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + cH); ctx.stroke()
+      const v = (t / 5) * maxVal
+      const lbl = v >= 1e6 ? `$${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `$${(v/1e3).toFixed(0)}k` : `$${v.toFixed(0)}`
+      ctx.fillStyle = '#555'
+      ctx.fillText(lbl, x, padT + cH + 18)
+    }
+
+    // Bars + Y labels
+    const groupH  = cH / n
+    const barH    = hasPrev ? groupH * 0.33 : groupH * 0.52
+    for (let i = 0; i < n; i++) {
+      const midY = padT + i * groupH + groupH / 2
+      ctx.fillStyle = '#333'
+      ctx.font      = '13px sans-serif'
+      ctx.textAlign = 'right'
+      ctx.fillText(labels[i], padL - 8, midY + 5)
+
+      const barY0 = hasPrev ? midY - barH - 1 : midY - barH / 2
+      ctx.fillStyle = '#1F3864'
+      ctx.fillRect(padL, barY0, Math.max(2, (currData[i] / maxVal) * cW), barH)
+
+      if (hasPrev && prevData) {
+        ctx.fillStyle = '#BDD7EE'
+        ctx.fillRect(padL, midY + 1, Math.max(2, (prevData[i] / maxVal) * cW), barH)
+      }
+    }
+
+    // Y-axis line
+    ctx.strokeStyle = '#999'
+    ctx.lineWidth   = 1
+    ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT + cH); ctx.stroke()
+
+    // Legend
+    if (hasPrev) {
+      const ly = height - 18
+      const items = [{ color: '#1F3864', label: 'Período actual' }, { color: '#BDD7EE', label: 'Período anterior' }]
+      const totalW = items.reduce((s, it) => {
+        ctx.font = '13px sans-serif'
+        return s + 22 + (ctx.measureText(it.label) as any).width + 16
+      }, 0)
+      let lx = (width - totalW) / 2
+      items.forEach(it => {
+        ctx.fillStyle = it.color
+        ctx.fillRect(lx, ly - 12, 14, 14)
+        ctx.fillStyle = '#333'
+        ctx.font      = '13px sans-serif'
+        ctx.textAlign = 'left'
+        ctx.fillText(it.label, lx + 18, ly)
+        lx += 22 + (ctx.measureText(it.label) as any).width + 16
+      })
+    }
+
+    return canvas.toBuffer('image/png') as Buffer
+  } catch (e) {
+    console.error('drawBarChart error:', e)
+    return null
+  }
+}
+
+function drawDoughnut(
+  labels: string[],
+  values: number[],
+  colors: string[],
+  width: number,
+  height: number,
+  title: string
+): Buffer | null {
+  try {
+    const canvas = createCanvas(width, height) as any
+    const ctx    = canvas.getContext('2d')
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, width, height)
+
+    const total = values.reduce((s, v) => s + v, 0)
+
+    ctx.fillStyle = '#1F3864'
+    ctx.font      = 'bold 18px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(title, width / 2, 32)
+
+    if (total === 0) return canvas.toBuffer('image/png') as Buffer
+
+    const legendH = labels.length * 22 + 14
+    const availH  = height - 48 - legendH
+    const cx = width / 2
+    const cy = 48 + availH / 2
+    const outerR = Math.min(cx - 24, availH / 2) * 0.92
+    const innerR = outerR * 0.55
+
+    let startAngle = -Math.PI / 2
+    values.forEach((v, i) => {
+      const sweep = (v / total) * Math.PI * 2
+      ctx.beginPath()
+      ctx.moveTo(cx, cy)
+      ctx.arc(cx, cy, outerR, startAngle, startAngle + sweep)
+      ctx.closePath()
+      ctx.fillStyle = colors[i] || '#ccc'
+      ctx.fill()
+      startAngle += sweep
+    })
+
+    // Cutout
+    ctx.beginPath()
+    ctx.arc(cx, cy, innerR, 0, Math.PI * 2)
+    ctx.fillStyle = '#ffffff'
+    ctx.fill()
+
+    // Center text
+    ctx.fillStyle = '#1F3864'
+    ctx.font      = 'bold 15px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('Total', cx, cy - 8)
+    const totalStr = total >= 1000 ? `${(total / 1000).toFixed(1)}k L` : `${total.toFixed(0)} L`
+    ctx.font = 'bold 13px sans-serif'
+    ctx.fillText(totalStr, cx, cy + 10)
+
+    // Legend
+    const legendStartY = cy + outerR + 20
+    labels.forEach((label, i) => {
+      const ly  = legendStartY + i * 22
+      const pct = (values[i] / total * 100).toFixed(1)
+      ctx.fillStyle = colors[i] || '#ccc'
+      ctx.fillRect(36, ly - 12, 14, 14)
+      ctx.fillStyle = '#333'
+      ctx.font      = '13px sans-serif'
+      ctx.textAlign = 'left'
+      ctx.fillText(`${label}  —  ${pct}%`, 56, ly)
+    })
+
+    return canvas.toBuffer('image/png') as Buffer
+  } catch (e) {
+    console.error('drawDoughnut error:', e)
+    return null
+  }
+}
+
+function drawLineChart(
+  labels: string[],
+  values: number[],
+  width: number,
+  height: number,
+  title: string
+): Buffer | null {
+  try {
+    const canvas = createCanvas(width, height) as any
+    const ctx    = canvas.getContext('2d')
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, width, height)
+
+    ctx.fillStyle = '#1F3864'
+    ctx.font      = 'bold 18px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(title, width / 2, 32)
+
+    const padL = 88, padR = 24, padT = 56, padB = 52
+    const cW = width - padL - padR
+    const cH = height - padT - padB
+    const n  = values.length
+
+    const minV = Math.min(...values)
+    const maxV = Math.max(...values)
+    const rng  = maxV - minV || 1
+    const yMin = Math.max(0, minV - rng * 0.15)
+    const yMax = maxV + rng * 0.15
+
+    const toX = (i: number) => padL + (n > 1 ? (i / (n - 1)) * cW : cW / 2)
+    const toY = (v: number) => padT + cH - ((v - yMin) / (yMax - yMin)) * cH
+
+    // Grid
+    ctx.lineWidth = 1
+    for (let t = 0; t <= 5; t++) {
+      const v = yMin + (t / 5) * (yMax - yMin)
+      const y = toY(v)
+      ctx.strokeStyle = '#E5E7EB'
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + cW, y); ctx.stroke()
+      ctx.fillStyle  = '#555'
+      ctx.font       = '12px sans-serif'
+      ctx.textAlign  = 'right'
+      ctx.fillText('$' + v.toFixed(2).replace('.', ','), padL - 6, y + 4)
+    }
+
+    // Fill
+    if (n > 1) {
+      ctx.beginPath()
+      ctx.moveTo(toX(0), toY(values[0]))
+      for (let i = 1; i < n; i++) {
+        const cpx = (toX(i - 1) + toX(i)) / 2
+        ctx.bezierCurveTo(cpx, toY(values[i - 1]), cpx, toY(values[i]), toX(i), toY(values[i]))
+      }
+      ctx.lineTo(toX(n - 1), padT + cH)
+      ctx.lineTo(toX(0), padT + cH)
+      ctx.closePath()
+      ctx.fillStyle = 'rgba(31,56,100,0.1)'
+      ctx.fill()
+
+      // Line
+      ctx.beginPath()
+      ctx.moveTo(toX(0), toY(values[0]))
+      for (let i = 1; i < n; i++) {
+        const cpx = (toX(i - 1) + toX(i)) / 2
+        ctx.bezierCurveTo(cpx, toY(values[i - 1]), cpx, toY(values[i]), toX(i), toY(values[i]))
+      }
+      ctx.strokeStyle = '#1F3864'
+      ctx.lineWidth   = 2.5
+      ctx.stroke()
+    }
+
+    // Points
+    values.forEach((v, i) => {
+      ctx.beginPath()
+      ctx.arc(toX(i), toY(v), 5, 0, Math.PI * 2)
+      ctx.fillStyle = '#1F3864'
+      ctx.fill()
+      ctx.beginPath()
+      ctx.arc(toX(i), toY(v), 3, 0, Math.PI * 2)
+      ctx.fillStyle = '#ffffff'
+      ctx.fill()
+    })
+
+    // X labels
+    ctx.fillStyle = '#555'
+    ctx.font      = '11px sans-serif'
+    labels.forEach((lbl, i) => {
+      ctx.save()
+      ctx.translate(toX(i), padT + cH + 16)
+      ctx.rotate(-0.38)
+      ctx.textAlign = 'right'
+      ctx.fillText(lbl, 0, 0)
+      ctx.restore()
+    })
+
+    // Axes
+    ctx.strokeStyle = '#999'
+    ctx.lineWidth   = 1
+    ctx.beginPath()
+    ctx.moveTo(padL, padT); ctx.lineTo(padL, padT + cH); ctx.lineTo(padL + cW, padT + cH)
+    ctx.stroke()
+
+    return canvas.toBuffer('image/png') as Buffer
+  } catch (e) {
+    console.error('drawLineChart error:', e)
+    return null
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
+    const sysSettings = await getSystemSettings()
+    const orgName = sysSettings.org_name.toUpperCase()
+
     const { searchParams } = new URL(request.url)
     const facturasParam = searchParams.get('facturas')
     const prevParam     = searchParams.get('prevFacturas')
@@ -220,6 +506,22 @@ export async function GET(request: NextRequest) {
     })
     const top5 = Array.from(vmap.values()).sort((a, b) => b.total - a.total).slice(0, 5)
 
+    // ── Fuel type breakdown ───────────────────────────────────────────────
+    const FUEL_NAMES = ['Nafta Super', 'Infinia', 'Infinia Diesel', 'D.Diesel 500'] as const
+    type FuelName = typeof FUEL_NAMES[number]
+    const fuelBreakdown = new Map<FuelName, { litros: number; importe: number }>(
+      FUEL_NAMES.map(f => [f, { litros: 0, importe: 0 }])
+    )
+    currLogs.forEach(l => {
+      const p = (l.description || '').toUpperCase()
+      let fk: FuelName | null = null
+      if      (p.includes('NAFTA'))                                                         fk = 'Nafta Super'
+      else if (p.includes('INFINIA') && p.includes('DIESEL'))                              fk = 'Infinia Diesel'
+      else if (p.includes('INFINIA'))                                                       fk = 'Infinia'
+      else if (p.includes('D.DIESEL') || (p.includes('DIESEL') && !p.includes('INFINIA'))) fk = 'D.Diesel 500'
+      if (fk) { const fd = fuelBreakdown.get(fk)!; fd.litros += l.gallons; fd.importe += l.totalCost }
+    })
+
     // ── Interpretive text for Descomposición ──────────────────────────────
     const hasPrev    = isMonthly && prevLogs.length > 0
     const isUp       = varTotal > 0
@@ -274,7 +576,7 @@ export async function GET(request: NextRequest) {
 
     // ── HEADER ─────────────────────────────────────────────────────────────
     M(`A${r}:G${r}`)
-    S(C('A',r), { val: 'MUNICIPALIDAD DE LUJÁN', bold: true, size: 14, color: WHITE, bg: NAVY, border: 'medium' })
+    S(C('A',r), { val: orgName, bold: true, size: 14, color: WHITE, bg: NAVY, border: 'medium' })
     RH(r, 24); r++
 
     M(`A${r}:D${r}`)
@@ -518,6 +820,158 @@ export async function GET(request: NextRequest) {
         RH(r, 15); r++
       })
     }
+
+
+    RH(r, 10); r++  // spacer before dashboard
+
+    // ── ANÁLISIS POR TIPO DE COMBUSTIBLE ─────────────────────────────────
+    M(`A${r}:G${r}`)
+    S(C('A',r), { val: 'ANÁLISIS POR TIPO DE COMBUSTIBLE', bold: true, size: 11, color: WHITE, bg: NAVY, border: 'medium' })
+    RH(r, 18); r++
+
+    M(`A${r}:B${r}`); S(C('A',r), { val: 'Combustible',  bold: true, size: 10, bg: LT_BLU, border: 'thin' })
+    S(C('C',r),                    { val: 'Litros',        bold: true, size: 10, bg: LT_BLU, border: 'thin' })
+    S(C('D',r),                    { val: '% Litros',      bold: true, size: 10, bg: LT_BLU, border: 'thin' })
+    M(`E${r}:F${r}`); S(C('E',r), { val: 'Importe',       bold: true, size: 10, bg: LT_BLU, border: 'thin' })
+    S(C('G',r),                    { val: 'Precio / L',    bold: true, size: 10, bg: LT_BLU, border: 'thin' })
+    RH(r, 16); r++
+
+    FUEL_NAMES.forEach((name, i) => {
+      const fd    = fuelBreakdown.get(name) ?? { litros: 0, importe: 0 }
+      const bg    = i % 2 === 0 ? WHITE : LT_BLU
+      const pctL  = curr.litros > 0 ? fd.litros  / curr.litros * 100 : 0
+      const prL   = fd.litros  > 0 ? fd.importe / fd.litros  : 0
+      const empty = fd.litros === 0
+      M(`A${r}:B${r}`)
+      S(C('A',r), { val: name,                                           size: 11, bg, h: 'left', border: 'thin', color: empty ? GRAY : BLCK })
+      S(C('C',r), { val: empty ? '\u2014' : `${formatNum(fd.litros,0)} L`,  size: 11, bg, border: 'thin', color: empty ? GRAY : BLCK })
+      S(C('D',r), { val: empty ? '\u2014' : `${formatNum(pctL,1)}%`,        size: 11, bg, border: 'thin', color: empty ? GRAY : BLCK })
+      M(`E${r}:F${r}`)
+      S(C('E',r), { val: empty ? '\u2014' : formatARS(fd.importe),          size: 11, bg, border: 'thin', color: empty ? GRAY : BLCK })
+      S(C('G',r), { val: empty ? '\u2014' : formatARS(prL),                 size: 11, bg, border: 'thin', color: empty ? GRAY : BLCK })
+      RH(r, 15); r++
+    })
+
+    RH(r, 10); r++  // spacer
+
+    // ── DISTRIBUCIÓN DEL GASTO — TOP SECRETARÍAS ─────────────────────────
+    const areasBySpend = AREAS_DB_ORDER
+      .map(name => ({ name, total: currByArea.get(name)?.total ?? 0, litros: currByArea.get(name)?.litros ?? 0 }))
+      .filter(a => a.total > 0)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5)
+
+    if (areasBySpend.length > 0) {
+      const maxSpend = areasBySpend[0].total
+      M(`A${r}:G${r}`)
+      S(C('A',r), { val: 'DISTRIBUCIÓN DEL GASTO \u2014 TOP SECRETAR\u00ADAS', bold: true, size: 11, color: WHITE, bg: NAVY, border: 'medium' })
+      RH(r, 18); r++
+
+      M(`A${r}:B${r}`); S(C('A',r), { val: 'Secretar\u00EDa',  bold: true, size: 10, bg: LT_BLU, border: 'thin' })
+      M(`C${r}:E${r}`); S(C('C',r), { val: 'Distribuci\u00F3n', bold: true, size: 10, bg: LT_BLU, border: 'thin' })
+      S(C('F',r),                    { val: '% Gasto',           bold: true, size: 10, bg: LT_BLU, border: 'thin' })
+      S(C('G',r),                    { val: '% Litros',          bold: true, size: 10, bg: LT_BLU, border: 'thin' })
+      RH(r, 16); r++
+
+      areasBySpend.forEach((a, i) => {
+        const bg    = i % 2 === 0 ? WHITE : LT_BLU
+        const pctI  = curr.total  > 0 ? a.total  / curr.total  * 100 : 0
+        const pctL  = curr.litros > 0 ? a.litros / curr.litros * 100 : 0
+        const filled = Math.round(18 * a.total / maxSpend)
+        const bar   = '\u2588'.repeat(filled) + '\u2591'.repeat(18 - filled)
+        M(`A${r}:B${r}`)
+        S(C('A',r), { val: dn(a.name),             size: 11, bg, h: 'left', border: 'thin' })
+        M(`C${r}:E${r}`)
+        S(C('C',r), { val: bar,                     size: 10, bg, h: 'left', border: 'thin', color: NAVY })
+        S(C('F',r), { val: `${formatNum(pctI,1)}%`, size: 11, bold: true, bg, border: 'thin' })
+        S(C('G',r), { val: `${formatNum(pctL,1)}%`, size: 11, bg, border: 'thin' })
+        RH(r, 15); r++
+      })
+    }
+
+
+    // ── DASHBOARD SHEET ────────────────────────────────────────────────────
+    const ws2 = wb.addWorksheet('Dashboard', {
+      pageSetup: {
+        paperSize: 9, orientation: 'portrait',
+        fitToPage: true, fitToWidth: 1, fitToHeight: 1,
+        margins: { left: 0.5, right: 0.5, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 }
+      }
+    })
+    ws2.columns = [
+      { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 },
+      { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }
+    ]
+    const C2  = (col: string, row: number) => ws2.getCell(`${col}${row}`)
+    const M2  = (rng: string) => safeMerge(ws2, rng)
+    const RH2 = (row: number, h: number) => { ws2.getRow(row).height = h }
+
+    M2('A1:H1')
+    S(C2('A', 1), { val: orgName, bold: true, size: 14, color: WHITE, bg: NAVY, border: 'medium' })
+    RH2(1, 24)
+    M2('A2:H2')
+    S(C2('A', 2), { val: `Dashboard de Combustible \u2014 ${monthLabel}`, bold: true, size: 11, color: WHITE, bg: NAVY, h: 'left', border: 'medium' })
+    RH2(2, 18)
+    RH2(3, 8)
+
+    // ── Chart 1: Horizontal Bar — Gasto por Secretar\u00EDa ─────────────────────
+    const areaAbbrev: Record<string, string> = {
+      'Salud': 'Salud', 'Proteccion Ciudadana': 'Prot. Ciudadana',
+      'Intendencia': 'Intendencia', 'Jefatura de Gabinete': 'Jef. de Gabinete',
+      'Obras Publicas': 'Obras P\u00FAblicas', 'Desarrollo Humano': 'Des. Humano',
+      'Desarrollo Productivo': 'Des. Productivo', 'Economia': 'Econom\u00EDa',
+      'Gobierno': 'Gobierno', 'Servicios Publicos': 'Servicios P\u00FAb.'
+    }
+    const areasForBar = AREAS_DB_ORDER
+      .map(n => ({ label: areaAbbrev[n] || n, curr: currByArea.get(n)?.total ?? 0, prev: prevByArea.get(n)?.total ?? 0 }))
+      .sort((a, b) => b.curr - a.curr)
+
+    const barBuf = drawBarChart(
+      areasForBar.map(a => a.label),
+      areasForBar.map(a => a.curr),
+      hasPrev ? areasForBar.map(a => a.prev) : null,
+      1300, 520,
+      'Gasto por Secretar\u00EDa'
+    )
+
+    if (barBuf) {
+      const bid = wb.addImage({ buffer: barBuf as any, extension: 'png' })
+      ws2.addImage(bid, { tl: { col: 0, row: 3 }, br: { col: 8, row: 20 } } as any)
+    }
+    for (let i = 4; i <= 20; i++) RH2(i, 19)
+    RH2(21, 8)
+
+    // ── Chart 2: Doughnut — Distribuci\u00F3n por Combustible ──────────────────
+    const fuelForChart = FUEL_NAMES
+      .map(n => ({ label: n, litros: fuelBreakdown.get(n)?.litros ?? 0 }))
+      .filter(f => f.litros > 0)
+
+    const doughBuf = fuelForChart.length > 0 ? drawDoughnut(
+      fuelForChart.map(f => f.label),
+      fuelForChart.map(f => f.litros),
+      ['#1F3864','#2E75B6','#9DC3E6','#BDD7EE'].slice(0, fuelForChart.length),
+      620, 460,
+      'Distribuci\u00F3n por Combustible (L)'
+    ) : null
+
+    // ── Chart 3: Line — Evoluci\u00F3n Precio/Litro ───────────────────────────
+    const lineBuf = priceEvolution.length > 1 ? drawLineChart(
+      priceEvolution.map(p => p.label),
+      priceEvolution.map(p => p.precio),
+      620, 460,
+      'Evoluci\u00F3n Precio / Litro'
+    ) : null
+
+    if (doughBuf && lineBuf) {
+      const did = wb.addImage({ buffer: doughBuf as any, extension: 'png' })
+      const lid = wb.addImage({ buffer: lineBuf  as any, extension: 'png' })
+      ws2.addImage(did, { tl: { col: 0, row: 21 }, br: { col: 4, row: 37 } } as any)
+      ws2.addImage(lid, { tl: { col: 4, row: 21 }, br: { col: 8, row: 37 } } as any)
+    } else if (doughBuf) {
+      const did = wb.addImage({ buffer: doughBuf as any, extension: 'png' })
+      ws2.addImage(did, { tl: { col: 2, row: 21 }, br: { col: 6, row: 37 } } as any)
+    }
+    for (let i = 22; i <= 37; i++) RH2(i, 18)
 
     // ── OUTPUT ────────────────────────────────────────────────────────────
     const buffer = await wb.xlsx.writeBuffer()

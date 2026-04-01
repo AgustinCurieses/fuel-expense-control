@@ -41,6 +41,21 @@ export async function GET() {
       }
     }
 
+    // 1b. Date range for last factura
+    let lastFacturaDateRange: { min: string; max: string } | null = null
+    if (lastFacturaNumber) {
+      const dateRange = await prisma.fuelLog.aggregate({
+        where: { factura: lastFacturaNumber, status: 'IMPORTED' },
+        _min: { date: true },
+        _max: { date: true }
+      })
+      if (dateRange._min.date && dateRange._max.date) {
+        const fmt = (d: Date) =>
+          `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`
+        lastFacturaDateRange = { min: fmt(dateRange._min.date), max: fmt(dateRange._max.date) }
+      }
+    }
+
     // 2. Área Más Activa: MainArea with most FuelLog records in the last factura
     const areaActivity = await prisma.fuelLog.groupBy({
       by: ['mainAreaId'],
@@ -189,15 +204,69 @@ export async function GET() {
       })
       .filter(price => price !== null)
 
+    // 6. Consumo por secretaría de la última factura
+    let consumoPorSecretaria: Array<{ areaName: string; litros: number; importe: string; porcentaje: number }> = []
+    if (lastFacturaNumber) {
+      const grouped = await prisma.fuelLog.groupBy({
+        by: ['mainAreaId'],
+        where: { factura: lastFacturaNumber, status: 'IMPORTED', mainAreaId: { not: null } },
+        _sum: { totalCost: true, gallons: true },
+        orderBy: { _sum: { totalCost: 'desc' } }
+      })
+      const totalImporte = grouped.reduce((sum, g) => sum + (g._sum.totalCost ?? 0), 0)
+      const areaIds = grouped.map(g => g.mainAreaId!).filter(Boolean)
+      const areas = await prisma.mainArea.findMany({ where: { id: { in: areaIds } }, select: { id: true, name: true } })
+      const areaMap = new Map(areas.map(a => [a.id, a.name]))
+      consumoPorSecretaria = grouped.map(g => ({
+        areaName: areaMap.get(g.mainAreaId!) ?? 'Sin área',
+        litros: g._sum.gallons ?? 0,
+        importe: formatARS(g._sum.totalCost ?? 0),
+        porcentaje: totalImporte > 0 ? Math.round(((g._sum.totalCost ?? 0) / totalImporte) * 100) : 0
+      }))
+    }
+
+    // 7. Últimas facturas (últimas 5)
+    const facturaGroups = await prisma.fuelLog.groupBy({
+      by: ['factura'],
+      where: { factura: { not: null }, status: 'IMPORTED' },
+      _min: { date: true },
+      _max: { date: true },
+      _sum: { totalCost: true },
+      orderBy: { _max: { date: 'desc' } },
+      take: 5
+    })
+    const factNumeros = facturaGroups.map(f => f.factura!).filter(Boolean)
+    const oficialTotals = await prisma.facturaTotal.findMany({
+      where: { factura: { in: factNumeros } },
+      select: { factura: true, totalOficial: true }
+    })
+    const oficialMap = new Map(oficialTotals.map(o => [o.factura, o.totalOficial]))
+    const fmtDate = (d: Date) =>
+      `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`
+    const ultimasFacturas = facturaGroups.map(f => {
+      const hasOficial = oficialMap.has(f.factura!)
+      const total = hasOficial ? oficialMap.get(f.factura!)! : (f._sum.totalCost ?? 0)
+      return {
+        factura: f.factura!,
+        minDate: f._min.date ? fmtDate(f._min.date) : '—',
+        maxDate: f._max.date ? fmtDate(f._max.date) : '—',
+        total: formatARS(total),
+        hasOficial
+      }
+    })
+
     return NextResponse.json({
       lastFactura: lastFacturaNumber,
       lastFacturaTotal: formatARS(lastFacturaTotal),
+      lastFacturaDateRange,
       mostActiveArea: mostActiveAreaName,
       mostActiveAreaCount,
       pendingCards: pendingCards.length,
       lastImportDate,
       recentActivity: limitedActivity,
-      fuelPrices: validFuelPrices
+      fuelPrices: validFuelPrices,
+      consumoPorSecretaria,
+      ultimasFacturas
     })
 
   } catch (error) {

@@ -1,62 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/database'
-import ExcelJS from 'exceljs'
+import * as ExcelJS from 'exceljs'
+import { getSystemSettings } from '@/lib/system-settings'
 
-// Helper function to format dates
 function formatDate(date: Date): string {
-  const day = date.getDate().toString().padStart(2, '0')
+  const day   = date.getDate().toString().padStart(2, '0')
   const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  const year = date.getFullYear()
+  const year  = date.getFullYear()
   return `${day}/${month}/${year}`
 }
 
-// Helper function to get current date in DD-MM-YYYY format
-function getCurrentDate(): string {
-  const date = new Date()
-  const day = date.getDate().toString().padStart(2, '0')
-  const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  const year = date.getFullYear()
-  return `${day}-${month}-${year}`
-}
-
-// Helper function to determine fuel group
 function getFuelGroup(product: string): 'nafta' | 'gasoil' | 'unknown' {
   if (!product) return 'unknown'
-  const productUpper = product.toUpperCase()
-  
-  // Group A (naftas): NAFTA SUPER or (INFINIA without DIESEL)
-  if (productUpper.includes('NAFTA') || (productUpper.includes('INFINIA') && !productUpper.includes('DIESEL'))) {
-    return 'nafta'
-  }
-
-  // Group B (gasoil): INFINIA DIESEL or D.DIESEL 500
-  if (productUpper.includes('INFINIA DIESEL') || productUpper.includes('D.DIESEL')) {
-    return 'gasoil'
-  }
-  
+  const p = product.toUpperCase()
+  if (p.includes('NAFTA') || (p.includes('INFINIA') && !p.includes('DIESEL'))) return 'nafta'
+  if (p.includes('INFINIA DIESEL') || p.includes('D.DIESEL')) return 'gasoil'
   return 'unknown'
 }
 
-export async function GET() {
+const NAVY   = 'FF1F3864'
+const WHITE  = 'FFFFFFFF'
+const BLCK   = 'FF000000'
+
+function safeMerge(ws: ExcelJS.Worksheet, range: string) {
+  try { ws.unMergeCells(range) } catch {}
+  ws.mergeCells(range)
+}
+
+export async function GET(request: NextRequest) {
   try {
-    // Get all cards that have FuelLogs with status = 'IMPORTED'
+    const { searchParams } = new URL(request.url)
+    const factura   = searchParams.get('factura')
+    const startDate = searchParams.get('startDate')
+    const endDate   = searchParams.get('endDate')
+    const areaId    = searchParams.get('areaId')
+
+    const sysSettings = await getSystemSettings()
+    const orgName = sysSettings.org_name.toUpperCase()
+
+    // Build the FuelLog filter
+    const logWhere: any = { status: 'IMPORTED' }
+    if (factura) {
+      logWhere.factura = factura
+    } else if (startDate && endDate) {
+      const [sy, sm, sd] = startDate.split('-').map(Number)
+      const [ey, em, ed] = endDate.split('-').map(Number)
+      logWhere.date = {
+        gte: new Date(sy, sm - 1, sd, 0, 0, 0),
+        lte: new Date(ey, em - 1, ed, 23, 59, 59, 999)
+      }
+    }
+
+    const cardWhere: any = { fuelLogs: { some: logWhere } }
+    if (areaId) cardWhere.areaId = areaId
+
     const cardsWithLogs = await prisma.card.findMany({
-      where: {
-        fuelLogs: {
-          some: {
-            status: 'IMPORTED'
-          }
-        }
-      },
+      where: cardWhere,
       include: {
-        fuelLogs: {
-          where: {
-            status: 'IMPORTED'
-          },
-          orderBy: {
-            date: 'desc'
-          }
-        },
+        fuelLogs: { where: logWhere, orderBy: { date: 'desc' } },
         area: true,
         subArea: true
       }
@@ -64,215 +65,166 @@ export async function GET() {
 
     const alerts: any[] = []
 
-    // Process each card (same logic as alerts API)
     for (const card of cardsWithLogs) {
-      // Skip cards where cardType = "maquinaria" OR allowedFuel = "ambos"
-      if (card.cardType === 'maquinaria' || card.allowedFuel === 'ambos') {
-        continue
+      if (card.cardType === 'maquinaria' || card.allowedFuel === 'ambos') continue
+
+      let suspiciousLoads: any[] = []
+      let primaryGroup: 'nafta' | 'gasoil'
+
+      if (!card.cardType || !card.allowedFuel) {
+        const naftaLogs  = card.fuelLogs.filter(l => getFuelGroup(l.description || '') === 'nafta')
+        const gasoilLogs = card.fuelLogs.filter(l => getFuelGroup(l.description || '') === 'gasoil')
+        const naftaL  = naftaLogs.reduce((s, l) => s + (l.gallons || 0), 0)
+        const gasoilL = gasoilLogs.reduce((s, l) => s + (l.gallons || 0), 0)
+        if (naftaL === 0 && gasoilL === 0) continue
+        primaryGroup    = gasoilL > naftaL ? 'gasoil' : 'nafta'
+        suspiciousLoads = primaryGroup === 'nafta' ? gasoilLogs : naftaLogs
+      } else {
+        primaryGroup = card.allowedFuel === 'nafta' ? 'nafta' : 'gasoil'
+        if (card.allowedFuel === 'nafta') {
+          suspiciousLoads = card.fuelLogs.filter(l => {
+            const p = (l.description || '').toUpperCase()
+            return p.includes('DIESEL') || p.includes('D.DIESEL')
+          })
+        } else {
+          suspiciousLoads = card.fuelLogs.filter(l => {
+            const p = (l.description || '').toUpperCase()
+            return (p.includes('NAFTA') || p.includes('INFINIA')) && !p.includes('DIESEL')
+          })
+        }
       }
 
-      // For cards with null cardType or allowedFuel, use old historical analysis as fallback
-      if (!card.cardType || !card.allowedFuel) {
-        // Group fuel logs by fuel type group
-        const naftaLogs = card.fuelLogs.filter(log => getFuelGroup(log.description || '') === 'nafta')
-        const gasoilLogs = card.fuelLogs.filter(log => getFuelGroup(log.description || '') === 'gasoil')
-        
-        // Calculate total liters for each group
-        const naftaLiters = naftaLogs.reduce((sum, log) => sum + (log.gallons || 0), 0)
-        const gasoilLiters = gasoilLogs.reduce((sum, log) => sum + (log.gallons || 0), 0)
-        
-        // Determine primary group (whichever has more total liters)
-        let primaryGroup: 'nafta' | 'gasoil' = 'nafta'
-        if (gasoilLiters > naftaLiters) {
-          primaryGroup = 'gasoil'
-        }
-        
-        // If both groups have 0 liters, skip this card
-        if (naftaLiters === 0 && gasoilLiters === 0) {
-          continue
-        }
-        
-        // Check for suspicious loads (logs from opposite group)
-        const suspiciousLoads = primaryGroup === 'nafta' 
-          ? gasoilLogs  // Gasoil loads for a nafta vehicle
-          : naftaLogs   // Nafta loads for a gasoil vehicle
-        
-        // If there are suspicious loads, create an alert
-        if (suspiciousLoads.length > 0) {
-          const alert = {
-            cardNumber: card.cardNumber,
-            dominio: card.identification || 'Sin Dominio',
-            subArea: card.subArea?.name || 'Sin Dependencia',
-            mainArea: card.area?.name || 'Sin Secretaría',
-            primaryGroup: primaryGroup,
-            suspiciousLoads: suspiciousLoads.map(load => ({
-              date: formatDate(load.date),
-              product: load.description || 'Sin Producto',
-              liters: load.gallons || 0,
-              amount: load.amount || 0,
-              remito: load.remito || 'Sin Remito'
-            }))
-          }
-          
-          alerts.push(alert)
-        }
-      } else {
-        // Use new logic with cardType and allowedFuel
-        let suspiciousLoads: any[] = []
-        
-        if (card.allowedFuel === 'nafta') {
-          // Alert if any FuelLog has product "INFINIA DIESEL" or "D.DIESEL 500"
-          suspiciousLoads = card.fuelLogs.filter(log => {
-            const product = (log.description || '').toUpperCase()
-            return product.includes('DIESEL') || product.includes('D.DIESEL')
-          })
-        } else if (card.allowedFuel === 'gasoil') {
-          // Alert if any FuelLog has product "NAFTA SUPER" or "INFINIA"
-          suspiciousLoads = card.fuelLogs.filter(log => {
-            const product = (log.description || '').toUpperCase()
-            return (product.includes('NAFTA') || product.includes('INFINIA')) && !product.includes('DIESEL')
-          })
-        }
-        
-        // If there are suspicious loads, create an alert
-        if (suspiciousLoads.length > 0) {
-          const alert = {
-            cardNumber: card.cardNumber,
-            dominio: card.identification || 'Sin Dominio',
-            subArea: card.subArea?.name || 'Sin Dependencia',
-            mainArea: card.area?.name || 'Sin Secretaría',
-            primaryGroup: card.allowedFuel === 'nafta' ? 'nafta' : 'gasoil',
-            suspiciousLoads: suspiciousLoads.map(load => ({
-              date: formatDate(load.date),
-              product: load.description || 'Sin Producto',
-              liters: load.gallons || 0,
-              amount: load.amount || 0,
-              remito: load.remito || 'Sin Remito'
-            }))
-          }
-          
-          alerts.push(alert)
-        }
+      if (suspiciousLoads.length > 0) {
+        alerts.push({
+          mainArea: card.area?.name || 'Sin Secretaría',
+          subArea:  card.subArea?.name || 'Sin Dependencia',
+          dominio:  card.identification || 'Sin Dominio',
+          primaryGroup,
+          suspiciousLoads: suspiciousLoads.map(l => ({
+            date:    formatDate(l.date),
+            product: l.description || 'Sin Producto',
+            liters:  l.gallons     || 0,
+            amount:  l.amount      || 0,
+            remito:  l.remito      || 'Sin Remito'
+          }))
+        })
       }
     }
 
-    // Flatten all suspicious loads for export
-    const allAlerts = alerts.flatMap(alert =>
-      alert.suspiciousLoads.map(load => ({
-        dominio: alert.dominio,
-        secretaria: alert.mainArea,
-        dependencia: alert.subArea,
-        combustiblePermitido: alert.primaryGroup === 'nafta' ? 'Nafta' : 'Gasoil',
-        productoCargado: load.product,
-        fecha: load.date,
-        litros: load.liters,
-        importe: load.amount,
-        remito: load.remito
+    // Flatten and sort
+    const rows = alerts.flatMap(a =>
+      a.suspiciousLoads.map((l: any) => ({
+        secretaria:            a.mainArea,
+        dependencia:           a.subArea,
+        dominio:               a.dominio,
+        combustiblePermitido:  a.primaryGroup === 'nafta' ? 'Nafta' : 'Gasoil',
+        productoCargado:       l.product,
+        fecha:                 l.date,
+        litros:                l.liters,
+        importe:               l.amount,
+        remito:                l.remito
       }))
     )
-
-    // Sort by date (most recent first)
-    allAlerts.sort((a, b) => {
-      const dateA = new Date(a.fecha.split('/').reverse().join('-'))
-      const dateB = new Date(b.fecha.split('/').reverse().join('-'))
-      return dateB.getTime() - dateA.getTime()
+    rows.sort((a: any, b: any) => {
+      const da = new Date(a.fecha.split('/').reverse().join('-'))
+      const db = new Date(b.fecha.split('/').reverse().join('-'))
+      return db.getTime() - da.getTime()
     })
 
-    // Create workbook
-    const workbook = new ExcelJS.Workbook()
-    
-    // Create worksheet
-    const worksheet = workbook.addWorksheet('Alertas de Combustible')
-    
-    // Page setup
-    worksheet.pageSetup.paperSize = 9 // A4
-    worksheet.pageSetup.orientation = 'landscape'
-    worksheet.pageSetup.margins = {
-      left: 0.75,
-      right: 0.75,
-      top: 1,
-      bottom: 1,
-      header: 0,
-      footer: 0
-    }
+    // Build period label for title
+    const periodLabel = factura
+      ? `Factura ${factura}`
+      : startDate && endDate
+        ? `${startDate.split('-').reverse().join('/')} al ${endDate.split('-').reverse().join('/')}`
+        : 'Todos los períodos'
 
-    // Title row
-    worksheet.mergeCells('A1:I1')
-    worksheet.getCell('A1').value = 'Alertas de Combustible — Municipalidad de Luján'
-    worksheet.getCell('A1').font = { name: 'Calibri', size: 11, bold: true }
-    worksheet.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' }
+    const areaLabel = areaId
+      ? (rows[0]?.secretaria || 'Secretaría')
+      : 'Todas las Secretarías'
 
-    // Header row
-    const headers = ['Dominio', 'Secretaría', 'Dependencia', 'Combustible Permitido', 'Producto Cargado', 'Fecha', 'Litros', 'Importe', 'Remito']
-    headers.forEach((header, index) => {
-      const cell = worksheet.getCell(2, index + 1)
-      cell.value = header
-      cell.font = { name: 'Calibri', size: 11, bold: true }
+    // Build workbook
+    const wb  = new ExcelJS.Workbook()
+    const ws  = wb.addWorksheet('Alertas', {
+      pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+        margins: { left: 0.5, right: 0.5, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 } }
+    })
+
+    ws.columns = [
+      { width: 22 }, // A - Secretaría
+      { width: 22 }, // B - Dependencia
+      { width: 14 }, // C - Dominio
+      { width: 16 }, // D - Comb. Permitido
+      { width: 18 }, // E - Producto Cargado
+      { width: 12 }, // F - Fecha
+      { width: 10 }, // G - Litros
+      { width: 15 }, // H - Importe
+      { width: 15 }, // I - Remito
+    ]
+
+    const cols = ['A','B','C','D','E','F','G','H','I']
+    const C = (col: string, row: number) => ws.getCell(`${col}${row}`)
+
+    // Row 1: org name
+    safeMerge(ws, 'A1:I1')
+    const c1 = C('A', 1)
+    c1.value = orgName
+    c1.font      = { name: 'Calibri', bold: true, size: 14, color: { argb: WHITE } }
+    c1.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } }
+    c1.alignment = { horizontal: 'center', vertical: 'middle' }
+    c1.border    = { top: { style: 'medium' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
+    ws.getRow(1).height = 22
+
+    // Row 2: title
+    safeMerge(ws, 'A2:I2')
+    const c2 = C('A', 2)
+    c2.value = `Alertas de Combustible — ${areaLabel} — ${periodLabel}`
+    c2.font      = { name: 'Calibri', bold: true, size: 11, color: { argb: WHITE } }
+    c2.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } }
+    c2.alignment = { horizontal: 'left', vertical: 'middle' }
+    c2.border    = { top: { style: 'medium' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
+    ws.getRow(2).height = 18
+
+    // Row 3: headers
+    const headers = ['Secretaría', 'Dependencia', 'Dominio', 'Comb. Permitido', 'Producto Cargado', 'Fecha', 'Litros', 'Importe', 'Remito']
+    headers.forEach((h, i) => {
+      const cell = C(cols[i], 3)
+      cell.value     = h
+      cell.font      = { name: 'Calibri', bold: true, size: 11, color: { argb: WHITE } }
+      cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } }
       cell.alignment = { horizontal: 'center', vertical: 'middle' }
-      cell.border = {
-        top: { style: 'medium' },
-        bottom: { style: 'medium' },
-        left: { style: 'medium' },
-        right: { style: 'medium' }
-      }
+      cell.border    = { top: { style: 'medium' }, bottom: { style: 'medium' }, left: { style: 'medium' }, right: { style: 'medium' } }
     })
+    ws.getRow(3).height = 16
 
     // Data rows
-    allAlerts.forEach((alert, index) => {
-      const row = index + 3
-      worksheet.getCell(`A${row}`).value = alert.dominio
-      worksheet.getCell(`B${row}`).value = alert.secretaria
-      worksheet.getCell(`C${row}`).value = alert.dependencia
-      worksheet.getCell(`D${row}`).value = alert.combustiblePermitido
-      worksheet.getCell(`E${row}`).value = alert.productoCargado
-      worksheet.getCell(`F${row}`).value = alert.fecha
-      worksheet.getCell(`G${row}`).value = alert.litros
-      worksheet.getCell(`H${row}`).value = alert.importe
-      worksheet.getCell(`I${row}`).value = alert.remito
-
-      // Format data rows
-      for (let col = 1; col <= 9; col++) {
-        const cell = worksheet.getCell(row, col)
-        cell.font = { name: 'Calibri', size: 11 }
-        cell.border = {
-          top: { style: 'medium' },
-          bottom: { style: 'medium' },
-          left: { style: 'medium' },
-          right: { style: 'medium' }
-        }
-      }
+    rows.forEach((row: any, idx: number) => {
+      const r  = idx + 4
+      const values = [
+        row.secretaria, row.dependencia, row.dominio,
+        row.combustiblePermitido, row.productoCargado,
+        row.fecha, row.litros, row.importe, row.remito
+      ]
+      values.forEach((v, i) => {
+        const cell = C(cols[i], r)
+        cell.value     = v
+        cell.font      = { name: 'Calibri', size: 11, color: { argb: BLCK } }
+        cell.alignment = { horizontal: i >= 6 ? 'right' : 'left', vertical: 'middle' }
+        cell.border    = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } }
+      })
     })
 
-    // Column widths
-    worksheet.getColumn(1).width = 15 // Dominio
-    worksheet.getColumn(2).width = 20 // Secretaría
-    worksheet.getColumn(3).width = 20 // Dependencia
-    worksheet.getColumn(4).width = 18 // Combustible Permitido
-    worksheet.getColumn(5).width = 20 // Producto Cargado
-    worksheet.getColumn(6).width = 12 // Fecha
-    worksheet.getColumn(7).width = 10 // Litros
-    worksheet.getColumn(8).width = 12 // Importe
-    worksheet.getColumn(9).width = 15 // Remito
+    const buffer   = await wb.xlsx.writeBuffer()
+    const fileSlug = areaId ? `alertas_${areaLabel.replace(/\s/g, '_')}` : 'alertas_combustible'
+    const datePart = factura ? `factura_${factura}` : startDate ? `${startDate}_${endDate}` : 'todos'
+    const filename = `${fileSlug}_${datePart}.xlsx`
 
-    // Generate buffer
-    const buffer = await workbook.xlsx.writeBuffer()
-
-    // Generate filename with current date
-    const today = getCurrentDate()
-    const filename = `Alertas_Combustible_${today}.xlsx`
-
-    // Return response
     return new NextResponse(buffer as ArrayBuffer, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${filename}"`
       }
     })
-
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Error exporting fuel type alerts' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Error exporting fuel type alerts' }, { status: 500 })
   }
 }

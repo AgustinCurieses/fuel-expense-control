@@ -13,7 +13,9 @@
     "reset-dev": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/reset-dev.ts"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.97",
     "@prisma/client": "^5.7.1",
+    "chart.js": "^4.5.1",
     "clsx": "^2.0.0",
     "exceljs": "^4.4.0",
     "lucide-react": "^0.303.0",

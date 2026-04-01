@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, Settings, FileSpreadsheet, ChevronDown, ChevronRight } from 'lucide-react'
+import { Save, Settings, ChevronDown, ChevronRight } from 'lucide-react'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -154,43 +154,6 @@ export default function ExcelMapperPage() {
           </div>
 
           <div className="p-6 space-y-6">
-            {/* Columna de importe activa */}
-            <div>
-              <p className="text-sm font-medium text-gray-900 mb-3">Columna de Importe Activa</p>
-              <div className="space-y-2">
-                <label className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="importeColumn"
-                    value="PVP"
-                    checked={!useAlternativeImporte}
-                    onChange={() => setUseAlternativeImporte(false)}
-                    className="text-blue-600 border-gray-300"
-                  />
-                  <span className="text-sm text-gray-900">
-                    <span className="font-medium">IMP TOT PVP ESTABLECIMIENTO</span>
-                    <span className="text-gray-500 ml-1">— Precio en estación</span>
-                  </span>
-                </label>
-                <label className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="importeColumn"
-                    value="YER"
-                    checked={useAlternativeImporte}
-                    onChange={() => setUseAlternativeImporte(true)}
-                    className="text-blue-600 border-gray-300"
-                  />
-                  <span className="text-sm text-gray-900">
-                    <span className="font-medium">IMP TOT YER</span>
-                    <span className="text-gray-500 ml-1">— Precio contractual</span>
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            <div className="border-t border-gray-100" />
-
             {/* Mapeo de columnas — collapsible */}
             <div>
               <button
@@ -213,48 +176,58 @@ export default function ExcelMapperPage() {
               </button>
 
               {mappingExpanded && (
-                <div className="mt-4 grid grid-cols-1 gap-3">
-                  {fields.map(({ key, label }) => (
-                    <div key={key} className="grid grid-cols-3 gap-3 items-center">
-                      <label className="text-sm font-medium text-gray-700">{label}</label>
-                      <div className="col-span-2">
-                        <Input
-                          value={columnMappings[key]}
-                          onChange={(e) => setColumnMappings(prev => ({ ...prev, [key]: e.target.value }))}
-                          placeholder="Nombre exacto de la columna en Excel"
-                        />
+                <div className="mt-4 space-y-4">
+                  <div className="grid grid-cols-1 gap-3">
+                    {fields.map(({ key, label }) => (
+                      <div key={key} className="grid grid-cols-3 gap-3 items-center">
+                        <label className="text-sm font-medium text-gray-700">{label}</label>
+                        <div className="col-span-2">
+                          <Input
+                            value={columnMappings[key]}
+                            onChange={(e) => setColumnMappings(prev => ({ ...prev, [key]: e.target.value }))}
+                            placeholder="Nombre exacto de la columna en Excel"
+                          />
+                        </div>
                       </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-100">
+                    <p className="text-sm font-medium text-gray-900 mb-3">Columna de Importe Activa</p>
+                    <div className="space-y-2">
+                      <label className="flex items-center space-x-3 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="importeColumn"
+                          value="PVP"
+                          checked={!useAlternativeImporte}
+                          onChange={() => setUseAlternativeImporte(false)}
+                          className="text-blue-600 border-gray-300"
+                        />
+                        <span className="text-sm text-gray-900">
+                          <span className="font-medium">IMP TOT PVP ESTABLECIMIENTO</span>
+                          <span className="text-gray-500 ml-1">— Precio en estación</span>
+                        </span>
+                      </label>
+                      <label className="flex items-center space-x-3 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="importeColumn"
+                          value="YER"
+                          checked={useAlternativeImporte}
+                          onChange={() => setUseAlternativeImporte(true)}
+                          className="text-blue-600 border-gray-300"
+                        />
+                        <span className="text-sm text-gray-900">
+                          <span className="font-medium">IMP TOT YER</span>
+                          <span className="text-gray-500 ml-1">— Precio contractual</span>
+                        </span>
+                      </label>
                     </div>
-                  ))}
+                  </div>
                 </div>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* Instructions */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center space-x-2">
-            <FileSpreadsheet className="w-5 h-5 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Instrucciones de Importación</h2>
-          </div>
-          <div className="p-6 space-y-4">
-            {[
-              { n: 1, title: 'Prepare el archivo Excel', desc: 'El archivo debe contener columnas con los nombres configurados en el mapeo.' },
-              { n: 2, title: 'Configure el mapeo de columnas', desc: 'Expanda "Mapeo de Columnas" y ajuste los nombres exactos según el encabezado del crudo YPF.' },
-              { n: 3, title: 'Guarde la configuración', desc: 'Haga clic en "Guardar Configuración" para almacenar los cambios.' },
-              { n: 4, title: 'Importe los datos', desc: 'Vaya a la página de Importación y cargue el archivo Excel.' },
-            ].map(({ n, title, desc }) => (
-              <div key={n} className="flex items-start space-x-3">
-                <div className="shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
-                  {n}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{title}</p>
-                  <p className="text-xs text-gray-500">{desc}</p>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </div>

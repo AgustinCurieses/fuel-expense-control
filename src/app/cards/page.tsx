@@ -116,6 +116,16 @@ export default function CardsPage() {
     }
   }
 
+  const getAreaName = (areaId: string) => {
+    const area = mainAreas.find(a => a.id === areaId)
+    return area?.name || 'Desconocido'
+  }
+
+  const getSubAreaName = (subAreaId: string) => {
+    const subArea = subAreas.find(s => s.id === subAreaId)
+    return subArea?.name || ''
+  }
+
   const filteredCards = cards
     .filter(card => {
       const q = searchTerm.toLowerCase()
@@ -344,16 +354,6 @@ export default function CardsPage() {
       console.error('Error loading card history:', err)
     }
     setIsHistoryModalOpen(true)
-  }
-
-  const getAreaName = (areaId: string) => {
-    const area = mainAreas.find(a => a.id === areaId)
-    return area?.name || 'Desconocido'
-  }
-
-  const getSubAreaName = (subAreaId: string) => {
-    const subArea = subAreas.find(s => s.id === subAreaId)
-    return subArea?.name || ''
   }
 
   const getSubAreasForArea = (areaId: string) => {

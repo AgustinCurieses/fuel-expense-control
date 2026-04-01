@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
 import { logAction } from '@/lib/audit'
 import { prisma } from '@/lib/database'
+import { getSystemSettings } from '@/lib/system-settings'
 
 // Helper function to resolve card area based on history
 async function getCardAreaAtDate(cardId: string, date: Date) {
@@ -38,9 +39,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Read the Excel file
+    const sysSettings = await getSystemSettings()
+    const sheetIndex = Math.max(0, parseInt(sysSettings.excel_sheet_index) || 0)
     const buffer = await file.arrayBuffer()
     const workbook = XLSX.read(buffer, { type: 'buffer' })
-    const sheetName = workbook.SheetNames[0]
+    const sheetName = workbook.SheetNames[sheetIndex] ?? workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
     const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][]
 
@@ -138,11 +141,12 @@ export async function POST(request: NextRequest) {
     const cardMap = new Map(cards.map(card => [card.cardNumber, card]))
 
     // Process data rows
+    const discoveredFacturas = new Set<string>()
     const results: any = {
       success: true,
       totalRows: data.length - 1,
       importedRows: 0,
-      pendingRows: 0,  
+      pendingRows: 0,
       duplicateRows: 0,
       updatedRows: 0,  // New field for factura updates
       failedRows: 0,
@@ -226,6 +230,7 @@ export async function POST(request: NextRequest) {
               })
               results.updatedRows++
               results.warnings.push(`Fila ${i + 1}: Remito "${rowData.remito}" existente - actualizado con número de factura`)
+              if (rowData.factura) discoveredFacturas.add(rowData.factura)
               continue
             } else {
               // Skip as duplicate (factura already exists or no new factura provided)
@@ -311,6 +316,7 @@ export async function POST(request: NextRequest) {
           ...fuelLog,
           card: { ...card, area: card.area, subArea: card.subArea }
         })
+        if (rowData.factura) discoveredFacturas.add(rowData.factura)
       } catch (error) {
         results.failedRows++
         results.errors.push(`Fila ${i + 1}: ${error instanceof Error ? error.message : 'Error desconocido'}`)
@@ -330,7 +336,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    return NextResponse.json(results)
+    return NextResponse.json({ ...results, discoveredFacturas: Array.from(discoveredFacturas) })
   } catch (error) {
     console.error('Error processing Excel file:', error)
     return NextResponse.json(

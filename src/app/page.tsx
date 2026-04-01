@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { MainLayout } from '@/components/layout/MainLayout'
-import { TrendingUp, MapPin, CreditCard, DollarSign } from 'lucide-react'
+import { DollarSign, Fuel, AlertTriangle } from 'lucide-react'
 
 interface DashboardData {
   lastFactura: string | null
   lastFacturaTotal: string
+  lastFacturaDateRange: { min: string; max: string } | null
   mostActiveArea: string
   mostActiveAreaCount: number
   pendingCards: number
@@ -36,19 +37,35 @@ interface DashboardData {
     pricePerLiter: number
     date: Date
   }> | null
+  consumoPorSecretaria: Array<{
+    areaName: string
+    litros: number
+    importe: string
+    porcentaje: number
+  }>
+  ultimasFacturas: Array<{
+    factura: string
+    minDate: string
+    maxDate: string
+    total: string
+    hasOficial: boolean
+  }>
 }
 
 export default function HomePage() {
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     lastFactura: null,
     lastFacturaTotal: '$ 0,00',
+    lastFacturaDateRange: null,
     mostActiveArea: 'Cargando...',
     mostActiveAreaCount: 0,
     pendingCards: 0,
     lastImportDate: null,
     recentActivity: [],
     fuelTypeAlerts: [],
-    fuelPrices: null
+    fuelPrices: null,
+    consumoPorSecretaria: [],
+    ultimasFacturas: []
   })
   const [loading, setLoading] = useState(true)
 
@@ -83,264 +100,188 @@ export default function HomePage() {
     fetchDashboardData()
   }, [])
 
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'import':
-        return <TrendingUp className="w-4 h-4 text-blue-600" />
-      case 'assignment':
-        return <CreditCard className="w-4 h-4 text-green-600" />
-      default:
-        return <MapPin className="w-4 h-4 text-purple-600" />
-    }
-  }
-
-  const getActivityIconBg = (type: string) => {
-    switch (type) {
-      case 'import':
-        return 'bg-blue-100'
-      case 'assignment':
-        return 'bg-green-100'
-      default:
-        return 'bg-purple-100'
-    }
-  }
-
   return (
     <MainLayout>
       <div className="space-y-6">
-        {/* Welcome Section */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Bienvenido a Fuel Control
-          </h1>
-          <p className="text-gray-600">
-            Gestione sus gastos de combustible de manera eficiente con nuestro sistema integral de seguimiento.
-          </p>
-        </div>
-
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Total Última Factura */}
-          <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg shadow-sm p-6 text-white">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-blue-500 bg-opacity-30 rounded-lg">
-                <DollarSign className="w-6 h-6" />
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-2.5 bg-blue-100 rounded-lg">
+                <DollarSign className="w-5 h-5 text-blue-600" />
               </div>
-              <span className="text-sm bg-blue-500 bg-opacity-30 px-2 py-1 rounded">
-                {loading || !dashboardData.lastFactura ? 'Última Factura' : `Factura ${dashboardData.lastFactura}`}
+              <span className="text-xs font-medium text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+                {loading || !dashboardData.lastFactura ? 'Sin factura' : `Nº ${dashboardData.lastFactura}`}
               </span>
             </div>
-            <div className="space-y-1">
-              <p className="text-3xl font-bold">{loading ? '$ 0,00' : dashboardData.lastFacturaTotal}</p>
-              <p className="text-blue-100 text-sm">Total Facturado</p>
+            <div className="mb-4">
+              <p className="text-2xl font-bold text-gray-900">{loading ? '—' : dashboardData.lastFacturaTotal}</p>
+              <p className="text-sm text-gray-500 mt-0.5">Total última factura emitida</p>
+            </div>
+            <div className="pt-4 border-t border-gray-100">
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Período</p>
+              <p className="text-sm text-gray-700">
+                {loading ? '—' : dashboardData.lastFacturaDateRange
+                  ? `${dashboardData.lastFacturaDateRange.min} — ${dashboardData.lastFacturaDateRange.max}`
+                  : 'Sin datos de período'}
+              </p>
             </div>
           </div>
 
           {/* Últimos Precios de Combustible */}
-          <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-lg shadow-sm p-6 text-white">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-green-500 bg-opacity-30 rounded-lg">
-                <DollarSign className="w-6 h-6" />
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-2.5 bg-green-100 rounded-lg">
+                <Fuel className="w-5 h-5 text-green-600" />
               </div>
-              <span className="text-sm bg-green-500 bg-opacity-30 px-2 py-1 rounded">
-                Últimos Precios
+              <span className="text-xs font-medium text-green-700 bg-green-50 px-2.5 py-1 rounded-full border border-green-100">
+                Precios por Litro
               </span>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {loading ? (
-                <p className="text-green-100 text-sm">Cargando...</p>
+                <p className="text-sm text-gray-400">Cargando...</p>
               ) : dashboardData.fuelPrices && dashboardData.fuelPrices.length > 0 ? (
                 dashboardData.fuelPrices
                   .sort((a, b) => {
-                    // Define order: NAFTA SUPER, INFINIA, D.DIESEL 500, INFINIA DIESEL
                     const order = ['NAFTA SUPER', 'INFINIA', 'D.DIESEL 500', 'INFINIA DIESEL']
                     return order.indexOf(a.product) - order.indexOf(b.product)
                   })
                   .map((fuel, index) => (
-                    <div key={index} className="grid grid-cols-3 gap-4 items-center text-sm">
-                      <span className="text-green-100 text-left">{fuel.product}</span>
-                      <span className="text-white font-medium text-center">
-                        ${fuel.pricePerLiter.toFixed(2).replace('.', ',')} /L
-                      </span>
-                      <span className="text-green-100 text-xs text-right">
-                        {new Date(fuel.date).toLocaleDateString('es-AR')}
-                      </span>
+                    <div key={index} className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600 truncate max-w-[140px]">{fuel.product}</span>
+                      <div className="text-right shrink-0">
+                        <span className="text-sm font-semibold text-gray-900">
+                          ${fuel.pricePerLiter.toFixed(2).replace('.', ',')}
+                        </span>
+                        <span className="text-xs text-gray-400 ml-1">/L</span>
+                      </div>
                     </div>
                   ))
               ) : (
-                <p className="text-green-100 text-sm">Sin datos</p>
+                <p className="text-sm text-gray-400">Sin datos de precios</p>
               )}
             </div>
           </div>
 
-          {/* Pending Cards to Assign */}
-          <div className="bg-gradient-to-br from-orange-600 to-orange-700 rounded-lg shadow-sm p-6 text-white">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-orange-500 bg-opacity-30 rounded-lg">
-                <CreditCard className="w-6 h-6" />
+          {/* Alertas & Estado */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className={`p-2.5 rounded-lg ${!loading && dashboardData.fuelTypeAlerts.length > 0 ? 'bg-red-100' : 'bg-gray-100'}`}>
+                <AlertTriangle className={`w-5 h-5 ${!loading && dashboardData.fuelTypeAlerts.length > 0 ? 'text-red-600' : 'text-gray-400'}`} />
               </div>
-              <span className="text-sm bg-orange-500 bg-opacity-30 px-2 py-1 rounded">
-                Acción Requerida
+              <span className="text-xs font-medium text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-200">
+                Estado del Sistema
               </span>
             </div>
-            <div className="space-y-1">
-              <p className="text-3xl font-bold">{loading ? '0' : dashboardData.pendingCards}</p>
-              <p className="text-orange-100 text-sm">Tarjetas por Asignar</p>
+            <div className="mb-4">
+              {loading ? (
+                <p className="text-2xl font-bold text-gray-900">—</p>
+              ) : dashboardData.fuelTypeAlerts.length === 0 ? (
+                <>
+                  <p className="text-2xl font-bold text-green-600">Sin alertas</p>
+                  <p className="text-sm text-gray-500 mt-0.5">Combustibles en orden</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-2xl font-bold text-red-600">{dashboardData.fuelTypeAlerts.reduce((t, a) => t + a.suspiciousLoads.length, 0)} alertas</p>
+                  <p className="text-sm text-gray-500 mt-0.5">Cargas sospechosas detectadas</p>
+                </>
+              )}
             </div>
-            {dashboardData.lastImportDate && (
-              <div className="mt-4 pt-4 border-t border-orange-500 border-opacity-30">
+            <div className="pt-4 border-t border-gray-100 space-y-2.5">
+              {!loading && dashboardData.pendingCards > 0 && (
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-orange-100">Última imp</span>
-                  <span className="text-white">{dashboardData.lastImportDate}</span>
+                  <span className="text-amber-600">Tarjetas por asignar</span>
+                  <span className="font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                    {dashboardData.pendingCards}
+                  </span>
                 </div>
+              )}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">Última importación</span>
+                <span className="text-gray-700 font-medium">{loading ? '—' : dashboardData.lastImportDate ?? 'Sin datos'}</span>
               </div>
+            </div>
+          </div>
+        </div>
+        {/* Consumo por Secretaría */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Consumo por Secretaría</h2>
+            {dashboardData.lastFactura && (
+              <span className="text-sm text-gray-500">Factura Nº {dashboardData.lastFactura}</span>
             )}
           </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Acciones Rápidas</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <a
-              href="/import"
-              className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="p-2 bg-blue-100 rounded-lg mr-4">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Cargar Excel</p>
-                <p className="text-sm text-gray-500">Subir datos de gastos de combustible</p>
-              </div>
-            </a>
-            
-            <a
-              href="/cards"
-              className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="p-2 bg-green-100 rounded-lg mr-4">
-                <CreditCard className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Gestionar Tarjetas</p>
-                <p className="text-sm text-gray-500">Asignar tarjetas de combustible a áreas</p>
-              </div>
-            </a>
-            
-            <a
-              href="/reports"
-              className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <div className="p-2 bg-purple-100 rounded-lg mr-4">
-                <MapPin className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Ver Reportes</p>
-                <p className="text-sm text-gray-500">Generar reportes de gastos</p>
-              </div>
-            </a>
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Actividad Reciente</h2>
-          <div className="space-y-4">
-            {loading ? (
-              <div className="text-center text-gray-500 py-8">
-                Cargando actividad reciente...
-              </div>
-            ) : dashboardData.recentActivity.length > 0 ? (
-              dashboardData.recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                  <div className={`p-2 rounded-full ${getActivityIconBg(activity.type)}`}>
-                    {getActivityIcon(activity.type)}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{activity.title}</p>
-                    <p className="text-xs text-gray-500">{activity.description}</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center text-gray-500 py-8">
-                No hay actividad reciente
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Fuel Type Alerts */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">⚠️ Alertas de Combustible</h2>
           {loading ? (
-            <div className="text-center text-gray-500 py-8">
-              Cargando alertas de combustible...
-            </div>
-          ) : dashboardData.fuelTypeAlerts.length === 0 ? (
-            <div className="text-center text-green-600 py-8">
-              ✅ Sin alertas de combustible
-            </div>
+            <p className="text-center text-gray-400 py-8">Cargando...</p>
+          ) : dashboardData.consumoPorSecretaria.length === 0 ? (
+            <p className="text-center text-gray-400 py-8">Sin datos de la última factura</p>
           ) : (
-            <div>
-              <div className="mb-4">
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
-                  {dashboardData.fuelTypeAlerts.reduce((total, alert) => total + alert.suspiciousLoads.length, 0)} alertas
-                </span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dominio</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Secretaría</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dependencia</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo Esperado</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carga Sospechosa</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Litros</th>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wide pb-2">Secretaría</th>
+                    <th className="text-right text-xs font-medium text-gray-400 uppercase tracking-wide pb-2">Litros</th>
+                    <th className="text-right text-xs font-medium text-gray-400 uppercase tracking-wide pb-2">Importe</th>
+                    <th className="text-right text-xs font-medium text-gray-400 uppercase tracking-wide pb-2 w-36">Participación</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {dashboardData.consumoPorSecretaria.map((row, i) => (
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="py-2.5 text-sm text-gray-900">{row.areaName}</td>
+                      <td className="py-2.5 text-sm text-gray-500 text-right">
+                        {row.litros.toLocaleString('es-AR', { maximumFractionDigits: 0 })} L
+                      </td>
+                      <td className="py-2.5 text-sm font-semibold text-gray-900 text-right">{row.importe}</td>
+                      <td className="py-2.5 pl-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <div className="w-20 bg-gray-100 rounded-full h-1.5">
+                            <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${row.porcentaje}%` }} />
+                          </div>
+                          <span className="text-xs text-gray-400 w-8 text-right">{row.porcentaje}%</span>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {dashboardData.fuelTypeAlerts
-                      .flatMap(alert => 
-                        alert.suspiciousLoads.map(load => ({
-                          ...alert,
-                          suspiciousLoad: load
-                        }))
-                      )
-                      .slice(0, 5)
-                      .map((row, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-4 py-2 text-sm text-gray-900">{row.dominio}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900">{row.mainArea}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900">{row.subArea}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900">
-                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                              row.primaryGroup === 'nafta' 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-blue-100 text-blue-800'
-                            }`}>
-                              {row.primaryGroup === 'nafta' ? 'Nafta' : 'Gasoil'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-900">{row.suspiciousLoad.product}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900">{row.suspiciousLoad.date}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900">{row.suspiciousLoad.liters.toFixed(2)}</td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="mt-4 text-center">
-                <a 
-                  href="/alerts" 
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Ver todas las alertas →
-                </a>
-              </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Últimas Facturas */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Últimas Facturas</h2>
+          {loading ? (
+            <p className="text-center text-gray-400 py-8">Cargando...</p>
+          ) : dashboardData.ultimasFacturas.length === 0 ? (
+            <p className="text-center text-gray-400 py-8">Sin facturas importadas</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {dashboardData.ultimasFacturas.map((f, i) => (
+                <div key={i} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Factura {f.factura}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{f.minDate} — {f.maxDate}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${f.hasOficial ? 'text-green-700 bg-green-50 border-green-200' : 'text-amber-600 bg-amber-50 border-amber-200'}`}>
+                      {f.hasOficial ? 'Validada' : 'Sin validar'}
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900 min-w-[120px] text-right">{f.total}</span>
+                    <a
+                      href={`/reports?factura=${encodeURIComponent(f.factura)}`}
+                      className="text-blue-500 hover:text-blue-700 text-sm font-medium"
+                    >
+                      Ver →
+                    </a>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

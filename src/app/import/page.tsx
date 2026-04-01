@@ -7,6 +7,8 @@ import { MainLayout } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui/Button'
 import { DropZone } from '@/components/ui/DropZone'
 import { Spinner } from '@/components/ui/Spinner'
+import { Modal } from '@/components/ui/Modal'
+import { Input } from '@/components/ui/Input'
 
 type ImportStep = 'upload' | 'processing' | 'complete'
 
@@ -17,8 +19,57 @@ export default function ImportPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [importResult, setImportResult] = useState<any>(null)
 
+  // Factura validation modal
+  const [showValidation, setShowValidation] = useState(false)
+  const [validationFacturas, setValidationFacturas] = useState<string[]>([])
+  const [facturaCalcTotals, setFacturaCalcTotals] = useState<Record<string, string>>({})
+  const [facturaInputs, setFacturaInputs] = useState<Record<string, string>>({})
+  const [isSavingValidation, setIsSavingValidation] = useState(false)
+  const [savedFacturas, setSavedFacturas] = useState<Set<string>>(new Set())
+
+  const openValidationModal = async (facturas: string[]) => {
+    const totals: Record<string, string> = {}
+    const inputs: Record<string, string> = {}
+    await Promise.all(facturas.map(async (f: string) => {
+      try {
+        const res = await fetch(`/api/facturas/total?factura=${encodeURIComponent(f)}`)
+        if (res.ok) {
+          const data = await res.json()
+          totals[f] = data.totalCalculadoFormateado ?? ''
+          if (data.totalOficial) inputs[f] = data.totalOficial.toString()
+        }
+      } catch {}
+    }))
+    setFacturaCalcTotals(totals)
+    setFacturaInputs(inputs)
+    setValidationFacturas(facturas)
+    setSavedFacturas(new Set())
+    setShowValidation(true)
+  }
+
+  const handleSaveValidation = async () => {
+    setIsSavingValidation(true)
+    const saved = new Set<string>()
+    for (const f of validationFacturas) {
+      const val = facturaInputs[f]
+      if (!val) continue
+      const parsed = parseFloat(val.replace(/\./g, '').replace(',', '.'))
+      if (isNaN(parsed) || parsed <= 0) continue
+      try {
+        const res = await fetch('/api/facturas/total', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ factura: f, totalOficial: parsed })
+        })
+        if (res.ok) saved.add(f)
+      } catch {}
+    }
+    setSavedFacturas(saved)
+    setIsSavingValidation(false)
+    setShowValidation(false)
+  }
+
   const handleFileSelect = async (file: File) => {
-    
     setSelectedFile(file)
     setError('')
     setCurrentStep('processing')
@@ -27,14 +78,12 @@ export default function ImportPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('useAlternativeImporte', 'false') // Default to PVP for now
+      formData.append('useAlternativeImporte', 'false')
 
-      
       const response = await fetch('/api/import-excel', {
         method: 'POST',
         body: formData
       })
-
 
       if (!response.ok) {
         const error = await response.json()
@@ -43,11 +92,13 @@ export default function ImportPage() {
 
       const result = await response.json()
       setImportResult(result)
-      
-      // Small delay to ensure smooth transition
       await new Promise(resolve => setTimeout(resolve, 100))
       setCurrentStep('complete')
-      
+
+      if (result.discoveredFacturas && result.discoveredFacturas.length > 0) {
+        await openValidationModal(result.discoveredFacturas)
+      }
+
     } catch (err) {
       console.error('Import error:', err)
       setError(err instanceof Error ? err.message : 'Failed to process file')
@@ -59,7 +110,7 @@ export default function ImportPage() {
         errors: [err instanceof Error ? err.message : 'Unknown error'],
         warnings: []
       })
-      setCurrentStep('complete') // Show complete step even with errors
+      setCurrentStep('complete')
     } finally {
       setIsProcessing(false)
     }
@@ -70,6 +121,10 @@ export default function ImportPage() {
     setSelectedFile(null)
     setError('')
     setImportResult(null)
+    setValidationFacturas([])
+    setFacturaInputs({})
+    setFacturaCalcTotals({})
+    setSavedFacturas(new Set())
   }
 
   return (
@@ -140,25 +195,13 @@ export default function ImportPage() {
 
         {/* Upload Step */}
         {currentStep === 'upload' && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Cargar Archivo Excel</h2>
-              <DropZone 
-                onFileSelect={handleFileSelect}
-                isProcessing={isProcessing}
-                error={error}
-              />
-            </div>
-
-            <div className="bg-blue-50 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-blue-900 mb-2">Requisitos de Importación</h3>
-              <ul className="text-sm text-blue-800 space-y-1">
-                <li>• El archivo Excel debe contener las columnas configuradas en la página de configuración</li>
-                <li>• Los números de tarjeta deben coincidir con las tarjetas existentes en el sistema</li>
-                <li>• El formato de fecha debe ser reconocible</li>
-                <li>• Importe y Litros deben ser valores numéricos</li>
-              </ul>
-            </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Cargar Archivo Excel</h2>
+            <DropZone
+              onFileSelect={handleFileSelect}
+              isProcessing={isProcessing}
+              error={error}
+            />
           </div>
         )}
 
@@ -257,6 +300,61 @@ export default function ImportPage() {
           </div>
         )}
       </div>
+
+      {/* Factura Validation Modal */}
+      <Modal
+        isOpen={showValidation}
+        onClose={() => setShowValidation(false)}
+        title="Validar Totales de Factura"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Se detectaron las siguientes facturas en la importación. Ingrese el total oficial de YPF para cada una y guarde para completar la validación.
+          </p>
+
+          <div className="space-y-3">
+            {validationFacturas.map(f => (
+              <div key={f} className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold text-gray-900">Factura {f}</p>
+                  {savedFacturas.has(f) && (
+                    <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      Validada
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-4 items-end">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Total calculado (App)</p>
+                    <p className="text-base font-bold text-blue-600">{facturaCalcTotals[f] ?? '—'}</p>
+                  </div>
+                  <div>
+                    <Input
+                      label="Total Oficial YPF"
+                      value={facturaInputs[f] ?? ''}
+                      onChange={e => setFacturaInputs(prev => ({ ...prev, [f]: e.target.value }))}
+                      placeholder="Ej: 1234567.89"
+                      type="text"
+                      inputMode="decimal"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+            <Button variant="outline" onClick={() => setShowValidation(false)}>
+              Omitir
+            </Button>
+            <Button onClick={handleSaveValidation} disabled={isSavingValidation}>
+              {isSavingValidation ? 'Guardando...' : 'Guardar validación'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </MainLayout>
   )
 }

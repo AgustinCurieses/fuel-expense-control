@@ -2,6 +2,7 @@
 const nextConfig = {
   experimental: {
     appDir: true,
+    serverComponentsExternalPackages: ['@napi-rs/canvas', 'chart.js'],
   },
 }
 

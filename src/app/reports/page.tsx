@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { clsx } from 'clsx'
-import { Download, FileSpreadsheet, Calendar, Filter, Search, Settings, CheckCircle, X, TrendingUp, MapPin } from 'lucide-react'
+import { Download, FileSpreadsheet, Calendar, Filter, Search, X, TrendingUp, DollarSign, Fuel, CreditCard, Hash } from 'lucide-react'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -23,11 +23,7 @@ export default function ReportsPage() {
   const [facturaFilter, setFacturaFilter] = useState<string>('')
   const [filterMode, setFilterMode] = useState<'period' | 'factura'>('period')
   const [availableFacturas, setAvailableFacturas] = useState<any[]>([])
-  const [facturaTotal, setFacturaTotal] = useState<any>(null)
-  const [totalOficial, setTotalOficial] = useState<string>('')
-  const [isSavingTotal, setIsSavingTotal] = useState(false)
-  const [validacionFactura, setValidacionFactura] = useState<string>('')
-  const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast()
+  const { toasts, removeToast } = useToast()
   const [isExporting, setIsExporting] = useState(false)
   const [showSummaryModal, setShowSummaryModal] = useState(false)
   const [selectedSummaryMonth, setSelectedSummaryMonth] = useState<string>('')
@@ -56,7 +52,7 @@ export default function ReportsPage() {
 
   const loadData = async () => {
     try {
-      const [areasResponse, settingsResponse, facturasResponse] = await Promise.all([
+      const [areasResponse, settingsResponse, facturasResponse, sysSettingsResponse] = await Promise.all([
         fetch('/api/areas'),
         fetch('/api/import-settings'),
         fetch('/api/facturas')
@@ -93,64 +89,6 @@ export default function ReportsPage() {
       console.error('Error loading data:', error)
     }
   }
-
-  const loadFacturaTotal = async (factura: string) => {
-    if (!factura) {
-      setFacturaTotal(null)
-      setTotalOficial('')
-      return
-    }
-
-    try {
-      const response = await fetch(`/api/facturas/total?factura=${encodeURIComponent(factura)}`)
-      if (response.ok) {
-        const data = await response.json()
-        setFacturaTotal(data)
-        setTotalOficial(data.totalOficial ? data.totalOficial.toString() : '')
-      }
-    } catch (error) {
-      console.error('Error loading factura total:', error)
-    }
-  }
-
-  const handleSaveTotalOficial = async () => {
-    if (!validacionFactura || !totalOficial) {
-      toastError('Datos incompletos', 'Seleccione una factura e ingrese el total oficial')
-      return
-    }
-
-    const parsed = parseFloat(totalOficial.replace(/\./g, '').replace(',', '.'))
-    if (isNaN(parsed) || parsed <= 0) {
-      toastError('Monto inválido', 'Ingrese un número mayor a cero')
-      return
-    }
-
-    setIsSavingTotal(true)
-    try {
-      const response = await fetch('/api/facturas/total', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ factura: validacionFactura, totalOficial: parsed })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setFacturaTotal(data)
-        // Refresh factura list to update hasTotal indicators
-        const facturasRes = await fetch('/api/facturas')
-        if (facturasRes.ok) setAvailableFacturas(await facturasRes.json())
-        toastSuccess('Total guardado', `Factura ${validacionFactura} validada correctamente`)
-      } else {
-        toastError('Error al guardar', 'No se pudo guardar el total oficial')
-      }
-    } catch (error) {
-      console.error('Error saving factura total:', error)
-      toastError('Error al guardar', 'No se pudo guardar el total oficial')
-    } finally {
-      setIsSavingTotal(false)
-    }
-  }
-
   const handleSaveSettings = async () => {
     try {
       const mappings = Object.entries(columnMappings).map(([field, columnName]) => ({
@@ -415,10 +353,6 @@ export default function ReportsPage() {
             <p className="text-gray-600">Importe datos de Excel y genere reportes por área</p>
           </div>
           <div className="flex space-x-3">
-            <Button variant="outline" onClick={() => setShowSettings(true)}>
-              <Settings className="w-4 h-4 mr-2" />
-              Configuración
-            </Button>
             <Button onClick={handleGenerateReport} disabled={isExporting || fuelLogs.length === 0}>
               <Download className="w-4 h-4 mr-2" />
               {isExporting ? 'Generando...' : 'Generar Reporte'}
@@ -500,8 +434,8 @@ export default function ReportsPage() {
                   value={facturaFilter}
                   onChange={(e) => {
                     setFacturaFilter(e.target.value)
-                    setValidacionFactura(e.target.value)
-                    loadFacturaTotal(e.target.value)
+
+
                   }}
                   options={
                     availableFacturas.length > 0
@@ -550,7 +484,7 @@ export default function ReportsPage() {
               {filterMode === 'factura' && facturaFilter && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                   Factura {facturaFilter}
-                  <button onClick={() => { setFacturaFilter(''); setValidacionFactura(''); }} className="ml-0.5 hover:text-blue-600">
+                  <button onClick={() => setFacturaFilter('')} className="ml-0.5 hover:text-blue-600">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
@@ -577,103 +511,12 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Validacion de Total de Factura */}
-        {availableFacturas.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Validacion de Total de Factura</h3>
-              {facturaTotal?.totalOficial && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                  <CheckCircle className="w-4 h-4" />
-                  Validada
-                </span>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <Select
-                label="Factura a Validar"
-                value={validacionFactura}
-                onChange={(e) => {
-                  setValidacionFactura(e.target.value)
-                  loadFacturaTotal(e.target.value)
-                }}
-                options={[
-                  { value: '', label: 'Seleccione una factura...' },
-                  ...availableFacturas.map(f => ({
-                    value: f.factura,
-                    label: `${f.hasTotal ? '\u2713 ' : ''}${f.factura} - ${f.label}`
-                  }))
-                ]}
-              />
-              {facturaTotal && (
-                <div className="flex flex-col justify-end">
-                  <p className="text-xs text-gray-500 mb-1">Total calculado (App)</p>
-                  <p className="text-xl font-bold text-blue-600">{facturaTotal.totalCalculadoFormateado}</p>
-                </div>
-              )}
-            </div>
-
-            {validacionFactura && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                <div>
-                  <Input
-                    label="Total Oficial YPF"
-                    value={totalOficial}
-                    onChange={(e) => setTotalOficial(e.target.value)}
-                    placeholder="Ej: 1234567.89"
-                    type="text"
-                    inputMode="decimal"
-                  />
-                </div>
-                <div>
-                  <Button
-                    onClick={handleSaveTotalOficial}
-                    disabled={isSavingTotal || !totalOficial}
-                    className="w-full"
-                  >
-                    {isSavingTotal ? 'Guardando...' : 'Guardar'}
-                  </Button>
-                </div>
-                <div></div>
-              </div>
-            )}
-
-            {facturaTotal && facturaTotal.totalOficial && (
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h4 className="text-md font-semibold text-gray-900 mb-3">Comparacion de Totales</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Total App:</span>
-                    <span className="font-semibold">{facturaTotal.totalCalculadoFormateado}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Total YPF:</span>
-                    <span className="font-semibold">{facturaTotal.totalOficialFormateado}</span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t border-gray-200">
-                    <span className="text-gray-900 font-medium">Diferencia:</span>
-                    <span className={`font-bold ${
-                      Math.abs(facturaTotal.diferencia || 0) < 1
-                        ? 'text-green-600'
-                        : Math.abs(facturaTotal.diferencia || 0) <= 100
-                        ? 'text-yellow-600'
-                        : 'text-red-600'
-                    }`}>
-                      {facturaTotal.diferenciaFormateada}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-blue-100 rounded-lg">
-                <FileSpreadsheet className="w-5 h-5 text-blue-600" />
+                <Hash className="w-5 h-5 text-blue-600" />
               </div>
               <div>
                 <p className="text-sm text-gray-500">Registros</p>
@@ -685,7 +528,7 @@ export default function ReportsPage() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-green-100 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-green-600" />
+                <DollarSign className="w-5 h-5 text-green-600" />
               </div>
               <div>
                 <p className="text-sm text-gray-500">Importe Total</p>
@@ -697,7 +540,7 @@ export default function ReportsPage() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-purple-100 rounded-lg">
-                <Calendar className="w-5 h-5 text-purple-600" />
+                <Fuel className="w-5 h-5 text-purple-600" />
               </div>
               <div>
                 <p className="text-sm text-gray-500">Litros Totales</p>
@@ -709,7 +552,7 @@ export default function ReportsPage() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-orange-100 rounded-lg">
-                <MapPin className="w-5 h-5 text-orange-600" />
+                <TrendingUp className="w-5 h-5 text-orange-600" />
               </div>
               <div>
                 <p className="text-sm text-gray-500">Precio Promedio/L</p>
@@ -721,7 +564,7 @@ export default function ReportsPage() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-red-100 rounded-lg">
-                <FileSpreadsheet className="w-5 h-5 text-red-600" />
+                <CreditCard className="w-5 h-5 text-red-600" />
               </div>
               <div>
                 <p className="text-sm text-gray-500">Tarjetas Únicas</p>
