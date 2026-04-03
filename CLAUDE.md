@@ -8,7 +8,7 @@ Permite importar crudos de YPF (Excel), gestionar tarjetas por área/secretaría
 ## Stack
 
 - **Next.js 14** (App Router) + **TypeScript** strict mode
-- **Prisma ORM** + **SQLite** (dev) / **PostgreSQL** (prod)
+- **Prisma ORM** + **PostgreSQL** (única BD, dev y prod)
 - **Tailwind CSS**
 - **ExcelJS** para generación de reportes Excel
 - Repo: GitHub privado
@@ -44,17 +44,22 @@ fuel-expense-control/
 ├── prisma/
 │   ├── schema.prisma                  # Modelos de BD
 │   ├── seed.ts                        # Seed con 235 tarjetas reales
-│   ├── dev.db                         # SQLite dev
 │   ├── reset-dev.ts                   # Reset BD desarrollo
 │   └── update-card-identification.ts
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx                   # Dashboard principal
+│   │   ├── login/                     # Página de login
 │   │   ├── import/                    # Importación de Excel crudo YPF
 │   │   ├── reports/                   # Reportes y filtros
 │   │   ├── cards/                     # Gestión de tarjetas
 │   │   ├── alerts/                    # Alertas de combustible
 │   │   ├── areas/                     # Gestión de áreas
+│   │   ├── admin/                     # Panel de administración (audit log)
+│   │   ├── superadmin/                # Panel superadmin (usuarios + config sistema)
+│   │   ├── settings/
+│   │   │   ├── page.tsx               # Configuración de importación
+│   │   │   └── mapper/page.tsx        # Mapeo de columnas Excel
 │   │   └── api/
 │   │       ├── import-excel/          # Importación de crudos YPF
 │   │       ├── generate-report/       # Reporte detallado por área
@@ -62,13 +67,42 @@ fuel-expense-control/
 │   │       ├── cards/                 # CRUD tarjetas + export Excel
 │   │       ├── dashboard/             # Datos del dashboard
 │   │       ├── facturas/              # Facturas y totales oficiales
-│   │       ├── alerts/fuel-type/      # Alertas de cambio de combustible
-│   │       └── pending-cards/         # Tarjetas pendientes de asignación
+│   │       ├── fuel-logs/             # Consulta de FuelLogs
+│   │       ├── areas/                 # Gestión de áreas
+│   │       ├── alerts/fuel-type/      # Alertas de cambio de combustible + export
+│   │       ├── pending-cards/         # Tarjetas pendientes de asignación
+│   │       ├── import-settings/       # Configuración de mapeo de columnas
+│   │       ├── auth/me/               # Endpoint de sesión actual (hardcodeado)
+│   │       ├── admin/
+│   │       │   ├── users/             # CRUD de usuarios
+│   │       │   ├── users/[id]/        # Editar/eliminar usuario
+│   │       │   └── audit/             # Logs de auditoría (paginado)
+│   │       └── superadmin/
+│   │           ├── auth/              # Autenticación superadmin por clave secreta
+│   │           └── settings/          # Parámetros de sistema (SystemSettings)
 │   ├── components/
-│   │   └── layout/Sidebar.tsx
+│   │   ├── layout/
+│   │   │   ├── Sidebar.tsx
+│   │   │   └── MainLayout.tsx
+│   │   ├── ui/                        # Librería de componentes reutilizables
+│   │   │   ├── Button.tsx
+│   │   │   ├── Input.tsx
+│   │   │   ├── Select.tsx
+│   │   │   ├── Modal.tsx
+│   │   │   ├── Toast.tsx
+│   │   │   ├── Badge.tsx
+│   │   │   ├── StatCard.tsx
+│   │   │   ├── PageHeader.tsx
+│   │   │   ├── Spinner.tsx
+│   │   │   ├── DropZone.tsx
+│   │   │   └── SearchableSelect.tsx
+│   │   └── ProtectedRoute.tsx         # HOC que redirige a /login si no autenticado
+│   ├── contexts/
+│   │   ├── AuthContext.tsx            # Proveedor de sesión (client-side)
+│   │   └── ToastContext.tsx           # Proveedor global de toasts
 │   ├── lib/
 │   │   ├── database.ts                # Singleton del cliente Prisma
-│   │   └── auth.ts                    # Auth hardcodeada (admin/admin)
+│   │   └── auth.ts                    # AuthService: login/logout client-side + localStorage
 │   └── types/index.ts                 # Tipos centralizados
 ```
 
@@ -83,6 +117,9 @@ fuel-expense-control/
 - `totalCost` (Float) — costo total en pesos argentinos
 - `gallons` (Float) — ⚠️ almacena **LITROS**, no galones. **No renombrar.**
 - `amount` (Float) — también almacena litros en algunos contextos
+- `conductor` (String?) — nombre del conductor (dato del crudo YPF)
+- `localidad` (String?) — localidad de la carga
+- `dominio` (String?) — dominio/patente del vehículo (del crudo YPF)
 - `mainAreaId` (String?) — FK a MainArea
 - `subAreaId` (String?) — FK a SubArea
 - `cardId` (String?) — FK a Card
@@ -99,12 +136,28 @@ fuel-expense-control/
 - `identification` (String?) — dominio del vehículo o nombre de la máquina
 - `userId` es opcional (las tarjetas son globales a la organización)
 
+### User — usuario del sistema
+- `email` (String, unique)
+- `role` (String) — `"admin"`, `"editor"`, o `"viewer"`
+- `isActive` (Boolean) — permite desactivar sin eliminar
+- `password` (String?) — pendiente implementar hashing real
+
+### AuditLog — registro de acciones
+- `userId` / `userEmail` — quién realizó la acción
+- `action` (String) — tipo de acción: `LOGIN`, `LOGOUT`, `IMPORT_EXCEL`, `ASSIGN_CARD`, `CREATE_USER`, `UPDATE_USER`, `DEACTIVATE_USER`, `SAVE_FACTURA_TOTAL`
+- `entity` / `entityId` — entidad afectada (opcional)
+- `detail` (String?) — JSON con detalles adicionales
+
+### SystemSettings — parámetros de configuración del sistema
+- Pares `key`/`value` (String, unique por key)
+- Claves usadas: `org_name`, `org_province`, `card_inactivity_days`, `excel_sheet_index`, `billing_period`, `factura_tolerance_green`, `factura_tolerance_yellow`
+
 ### MainArea — secretaría/área principal
 ### SubArea — sub-área dependiente de MainArea
 ### CardAreaHistory — historial de reasignaciones de área por tarjeta
 - Campos `validFrom`/`validTo`: al resolver el área de un FuelLog, usar el área vigente a la **fecha de la carga**, no el área actual de la tarjeta.
 
-### Otros modelos: `User`, `ImportSettings`, `ImportMapping`
+### Otros modelos: `ImportSettings`, `ImportMapping`
 
 ---
 
@@ -113,7 +166,29 @@ fuel-expense-control/
 - **10 MainAreas:** Salud, Protección Ciudadana, Intendencia, Jefatura de Gabinete, Obras Públicas, Desarrollo Humano, Desarrollo Productivo, Economía, Gobierno, Servicios Públicos
 - **76 SubAreas** distribuidas entre las áreas
 - **235 tarjetas** reales (seed tiene 238 — hay 3 extras a corregir)
-- **Login:** `admin / admin` hardcodeado en `src/lib/auth.ts`. Sesiones en `localStorage`. Sin validación backend. Seguridad pendiente.
+
+---
+
+## Auth y Seguridad
+
+### Sistema actual
+- Login con email + password en `/login`
+- `AuthService` en `src/lib/auth.ts` — validación client-side, sesión en `localStorage`
+- `AuthContext` proveedor global; `ProtectedRoute` redirige a `/login` si no autenticado
+- `/api/auth/me` devuelve usuario hardcodeado (no valida token real)
+- **Sin validación backend real**: cualquiera que conozca la URL puede acceder a las APIs directamente
+
+### Superadmin (`/superadmin`)
+- Protegido por clave secreta fija (no relacionada con User)
+- Permite: CRUD de usuarios, configuración de parámetros del sistema (`SystemSettings`)
+- API: `/api/superadmin/auth` + `/api/superadmin/settings`
+
+### Admin (`/admin`)
+- Accesible con login normal rol `admin`
+- Muestra el log de auditoría paginado (50 por página)
+- API: `/api/admin/audit`, `/api/admin/users`, `/api/admin/users/[id]`
+
+> Seguridad real (contraseñas hasheadas, JWT, timeout de sesión) está **intencionalmente diferida** hasta que toda la funcionalidad esté completa.
 
 ---
 
@@ -150,8 +225,8 @@ fuel-expense-control/
 - Permite asignar un número de tarjeta desconocido a una Card existente → backfill de todos los logs relacionados
 
 ### 4. Export de Tarjetas (`GET /api/cards/export`)
-- Sheet 1: Tarjetas Activas (cargas en últimos 30 días)
-- Sheet 2: Tarjetas Inactivas (sin cargas en últimos 30 días)
+- Sheet 1: Tarjetas Activas (cargas en últimos `card_inactivity_days` días — configurable en SystemSettings)
+- Sheet 2: Tarjetas Inactivas
 
 ---
 
@@ -293,6 +368,7 @@ fs.appendFileSync('debug.log', JSON.stringify(data) + '\n')
 | Distribución por Combustible solo muestra 2 de 4 tipos | Pendiente |
 | 238 tarjetas en seed en lugar de 235 (3 extras) | Pendiente |
 | 20 tarjetas con patente válida tienen `allowedFuel="ambos"` incorrectamente | Esperando informe municipal |
+| `/api/auth/me` devuelve usuario hardcodeado — sin validación backend real | Pendiente |
 
 ---
 
@@ -302,13 +378,8 @@ fs.appendFileSync('debug.log', JSON.stringify(data) + '\n')
 2. **Fix KPIs Resumen Ejecutivo** — alturas de fila (h=1) y distribución por combustible (solo 2 de 4 tipos)
 3. **Dashboard** — reemplazar cuadrado azul "gasto del mes" por total de la última factura importada
 4. **UX validación de factura** — mejorar flujo de ingreso del monto oficial YPF
-5. **Mejoras de interfaz** — textos grises difíciles de leer, consistencia visual general
-6. **Panel de administración** — roles de usuarios, auditoría de acciones, parámetros configurables
-7. **Seguridad** — contraseñas hasheadas, timeout de sesión, límite de intentos de login
-8. **Deploy** — Vercel + migración a PostgreSQL
-9. **Dominio propio**
-
-> Seguridad y multi-usuario están **intencionalmente diferidos** hasta que toda la funcionalidad esté completa.
+5. **Seguridad** — contraseñas hasheadas, validación backend de sesión, timeout, límite de intentos
+6. **Dominio propio**
 
 ---
 
