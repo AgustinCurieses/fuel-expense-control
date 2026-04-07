@@ -64,7 +64,7 @@ export function Sidebar({ isOpen, onToggle, currentUser }: SidebarProps) {
         'w-56 flex-shrink-0 flex flex-col',
         'bg-navy-600',
         isOpen ? 'translate-x-0' : '-translate-x-full',
-        'lg:translate-x-0 lg:static lg:z-0'
+        'lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:z-0'
       )}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-5 border-b border-navy-700">

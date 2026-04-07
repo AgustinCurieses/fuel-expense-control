@@ -30,7 +30,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-slate-50 flex">
+      <div className="flex h-screen overflow-hidden bg-slate-50">
         <Sidebar
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen(!sidebarOpen)}
@@ -38,7 +38,7 @@ export function MainLayout({ children }: MainLayoutProps) {
         />
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
           {/* Top Header */}
           <header className="bg-white border-b border-slate-200 px-6 py-3.5 sticky top-0 z-10">
             <div className="flex items-center justify-between">
