@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
-import { ToastComponent, useToast } from '@/components/ui/Toast'
+import { useToastContext } from '@/contexts/ToastContext'
+import { Skeleton } from '@/components/ui/Skeleton'
 import {
   ShieldCheck, Lock, Users, Settings,
   PlusCircle, Pencil, UserX, UserCheck, Save
@@ -40,12 +42,6 @@ const ROLE_LABELS: Record<string, string> = {
   admin:  'Administrador',
   editor: 'Editor',
   viewer: 'Visualizador',
-}
-
-const ROLE_COLORS: Record<string, string> = {
-  admin:  'bg-red-100 text-red-800',
-  editor: 'bg-blue-100 text-blue-800',
-  viewer: 'bg-gray-100 text-gray-800',
 }
 
 const DEFAULT_SETTINGS: SystemSettings = {
@@ -88,9 +84,8 @@ export default function SuperAdminPage() {
   const [settingsLoading, setSettingsLoading] = useState(false)
   const [settingsSaving, setSettingsSaving] = useState(false)
 
-  const { toasts, removeToast, success: toastSuccess, error: toastError } = useToast()
+  const { success: toastSuccess, error: toastError } = useToastContext()
 
-  // Load data after auth
   useEffect(() => {
     if (!authenticated) return
     if (tab === 'users') loadUsers()
@@ -243,11 +238,15 @@ export default function SuperAdminPage() {
   const setSetting = (key: keyof SystemSettings) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setSettings(prev => ({ ...prev, [key]: e.target.value }))
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
   const formatDate = (iso: string) => {
     const d = new Date(iso)
     return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  const roleBadgeVariant = (role: string) => {
+    if (role === 'admin') return 'danger' as const
+    if (role === 'editor') return 'info' as const
+    return 'neutral' as const
   }
 
   // ── Render: password gate ─────────────────────────────────────────────────
@@ -256,23 +255,23 @@ export default function SuperAdminPage() {
     return (
       <MainLayout>
         <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 w-full max-w-md">
+          <div className="bg-white rounded-xl border border-slate-200 p-10 w-full max-w-md">
             <div className="flex flex-col items-center mb-8">
-              <div className="p-4 bg-gray-900 rounded-full mb-4">
-                <Lock className="w-8 h-8 text-white" />
+              <div className="p-3 bg-navy-600 rounded-xl mb-4">
+                <Lock className="w-7 h-7 text-white" aria-hidden="true" />
               </div>
-              <h1 className="text-xl font-bold text-gray-900">Panel Super Admin</h1>
-              <p className="text-sm text-gray-500 mt-1 text-center">
+              <h1 className="text-xl font-semibold text-slate-800">Panel Super Admin</h1>
+              <p className="text-sm text-slate-500 mt-1 text-center">
                 Acceso restringido al operador de la plataforma
               </p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Clave de acceso</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Clave de acceso</label>
                 <input
                   type="password"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800"
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-md text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-navy-600 focus:border-navy-600"
                   placeholder="••••••••••••"
                   value={keyInput}
                   onChange={e => setKeyInput(e.target.value)}
@@ -286,6 +285,7 @@ export default function SuperAdminPage() {
                 onClick={handleAuth}
                 disabled={authLoading || !keyInput}
                 className="w-full justify-center"
+                size="lg"
               >
                 {authLoading ? 'Verificando...' : 'Ingresar'}
               </Button>
@@ -302,108 +302,123 @@ export default function SuperAdminPage() {
     <MainLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-gray-900 rounded-lg p-6 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+        <div className="bg-navy-600 rounded-lg px-6 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
             <div className="p-2 bg-white/10 rounded-lg">
-              <ShieldCheck className="w-6 h-6 text-white" />
+              <ShieldCheck className="w-5 h-5 text-white" aria-hidden="true" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">Panel Super Admin</h1>
-              <p className="text-gray-400 text-sm">Gestión de la instancia</p>
+              <h1 className="text-base font-semibold text-white">Panel Super Admin</h1>
+              <p className="text-navy-200 text-xs">Gestión de la instancia</p>
             </div>
           </div>
           <button
             onClick={() => setAuthenticated(false)}
-            className="text-xs text-gray-400 hover:text-white transition-colors"
+            className="text-xs text-navy-300 hover:text-white transition-colors"
           >
             Cerrar sesión
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
           <button
             onClick={() => setTab('users')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              tab === 'users' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              tab === 'users' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Users className="w-4 h-4" />
-            <span>Usuarios</span>
+            <Users className="w-4 h-4" aria-hidden="true" />
+            Usuarios
           </button>
           <button
             onClick={() => setTab('sistema')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              tab === 'sistema' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              tab === 'sistema' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Settings className="w-4 h-4" />
-            <span>Sistema</span>
+            <Settings className="w-4 h-4" aria-hidden="true" />
+            Sistema
           </button>
         </div>
 
         {/* ── Users tab ──────────────────────────────────────────────────────── */}
         {tab === 'users' && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center space-x-2">
-                <Users className="w-5 h-5 text-gray-500" />
-                <h2 className="text-lg font-semibold text-gray-900">Usuarios del Sistema</h2>
-                <span className="bg-gray-100 text-gray-700 text-xs font-medium px-2 py-0.5 rounded-full">
-                  {users.length}
-                </span>
+          <div className="bg-white rounded-lg border border-slate-200">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-slate-500" aria-hidden="true" />
+                <h2 className="text-sm font-semibold text-slate-800">Usuarios del Sistema</h2>
+                <Badge variant="neutral">{users.length}</Badge>
               </div>
-              <Button onClick={() => setShowCreate(true)}>
-                <PlusCircle className="w-4 h-4 mr-2" />
+              <Button onClick={() => setShowCreate(true)} size="sm">
+                <PlusCircle className="w-4 h-4 mr-2" aria-hidden="true" />
                 Nuevo Usuario
               </Button>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Creado</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-navy-600">
+                    <th scope="col" className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Nombre</th>
+                    <th scope="col" className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Email</th>
+                    <th scope="col" className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Rol</th>
+                    <th scope="col" className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Estado</th>
+                    <th scope="col" className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Creado</th>
+                    <th scope="col" className="px-5 py-3 text-right text-xs font-medium text-white/80 uppercase tracking-wider">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-slate-100">
                   {usersLoading ? (
-                    <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-400">Cargando...</td></tr>
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i} className="border-t border-slate-100">
+                        <td className="px-5 py-3"><Skeleton className="h-4 w-28" /></td>
+                        <td className="px-5 py-3"><Skeleton className="h-4 w-40" /></td>
+                        <td className="px-5 py-3"><Skeleton className="h-5 w-24 rounded-full" /></td>
+                        <td className="px-5 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                        <td className="px-5 py-3"><Skeleton className="h-3 w-28" /></td>
+                        <td className="px-5 py-3"><Skeleton className="h-6 w-20 ml-auto" /></td>
+                      </tr>
+                    ))
                   ) : users.length === 0 ? (
-                    <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-400">No hay usuarios</td></tr>
+                    <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-slate-500">No hay usuarios registrados</td></tr>
                   ) : users.map(user => (
-                    <tr key={user.id} className={`hover:bg-gray-50 ${!user.isActive ? 'opacity-50' : ''}`}>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{user.name || '—'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{user.email}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${ROLE_COLORS[user.role] ?? 'bg-gray-100 text-gray-800'}`}>
+                    <tr key={user.id} className={`hover:bg-slate-50 ${!user.isActive ? 'opacity-50' : ''}`}>
+                      <td className="px-5 py-3 text-sm font-medium text-slate-800">{user.name || '—'}</td>
+                      <td className="px-5 py-3 text-sm text-slate-700">{user.email}</td>
+                      <td className="px-5 py-3">
+                        <Badge variant={roleBadgeVariant(user.role)}>
                           {ROLE_LABELS[user.role] ?? user.role}
-                        </span>
+                        </Badge>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
+                      <td className="px-5 py-3">
+                        <Badge variant={user.isActive ? 'success' : 'neutral'}>
                           {user.isActive ? 'Activo' : 'Inactivo'}
-                        </span>
+                        </Badge>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{formatDate(user.createdAt)}</td>
-                      <td className="px-6 py-4 text-right space-x-1">
-                        <button onClick={() => openEdit(user)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="Editar">
-                          <Pencil className="w-4 h-4" />
+                      <td className="px-5 py-3 text-xs text-slate-500 font-mono">{formatDate(user.createdAt)}</td>
+                      <td className="px-5 py-3 text-right space-x-1">
+                        <button
+                          onClick={() => openEdit(user)}
+                          aria-label={`Editar ${user.email}`}
+                          className="p-1.5 text-navy-600 hover:bg-navy-50 rounded-md transition-colors"
+                        >
+                          <Pencil className="w-4 h-4" aria-hidden="true" />
                         </button>
                         <button
                           onClick={() => handleToggleActive(user)}
-                          className={`p-1.5 rounded ${user.isActive ? 'text-orange-500 hover:bg-orange-50' : 'text-green-500 hover:bg-green-50'}`}
-                          title={user.isActive ? 'Desactivar' : 'Activar'}
+                          aria-label={user.isActive ? `Desactivar ${user.email}` : `Activar ${user.email}`}
+                          className={`p-1.5 rounded-md transition-colors ${user.isActive ? 'text-amber-600 hover:bg-amber-50' : 'text-green-600 hover:bg-green-50'}`}
                         >
-                          {user.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                          {user.isActive ? <UserX className="w-4 h-4" aria-hidden="true" /> : <UserCheck className="w-4 h-4" aria-hidden="true" />}
                         </button>
-                        <button onClick={() => handleDeleteUser(user)} className="p-1.5 text-red-500 hover:bg-red-50 rounded" title="Eliminar">
-                          <UserX className="w-4 h-4" />
+                        <button
+                          onClick={() => handleDeleteUser(user)}
+                          aria-label={`Eliminar ${user.email}`}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        >
+                          <UserX className="w-4 h-4" aria-hidden="true" />
                         </button>
                       </td>
                     </tr>
@@ -416,12 +431,15 @@ export default function SuperAdminPage() {
 
         {/* ── Sistema tab ────────────────────────────────────────────────────── */}
         {tab === 'sistema' && (
-          <div className="space-y-6">
+          <div className="space-y-5">
             {/* Organización */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-base font-semibold text-gray-900 mb-4">Organización</h3>
+            <div className="bg-white rounded-lg border border-slate-200 p-6">
+              <h3 className="text-sm font-semibold text-slate-800 mb-4">Organización</h3>
               {settingsLoading ? (
-                <p className="text-sm text-gray-400">Cargando...</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Skeleton className="h-16 rounded-md" />
+                  <Skeleton className="h-16 rounded-md" />
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
@@ -445,12 +463,12 @@ export default function SuperAdminPage() {
                           checked={settings.show_org_logo === 'true'}
                           onChange={e => setSettings(prev => ({ ...prev, show_org_logo: e.target.checked ? 'true' : 'false' }))}
                         />
-                        <div className={`w-10 h-6 rounded-full transition-colors ${settings.show_org_logo === 'true' ? 'bg-blue-600' : 'bg-gray-300'}`} />
+                        <div className={`w-10 h-6 rounded-full transition-colors ${settings.show_org_logo === 'true' ? 'bg-navy-600' : 'bg-slate-300'}`} />
                         <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.show_org_logo === 'true' ? 'translate-x-4' : ''}`} />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-700">Mostrar logo en el sidebar</p>
-                        <p className="text-xs text-gray-400">El archivo debe estar en <code className="bg-gray-100 px-1 rounded">public/logo-municipalidad.png</code></p>
+                        <p className="text-sm font-medium text-slate-700">Mostrar logo en el sidebar</p>
+                        <p className="text-xs text-slate-400">El archivo debe estar en <code className="bg-slate-100 px-1 rounded text-slate-600">public/logo-municipalidad.png</code></p>
                       </div>
                     </label>
                   </div>
@@ -459,22 +477,22 @@ export default function SuperAdminPage() {
             </div>
 
             {/* Importación */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-base font-semibold text-gray-900 mb-4">Importación Excel</h3>
+            <div className="bg-white rounded-lg border border-slate-200 p-6">
+              <h3 className="text-sm font-semibold text-slate-800 mb-4">Importación Excel</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
                     Hoja del Excel a importar
                   </label>
                   <input
                     type="number"
                     min={0}
                     max={20}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-navy-600 focus:border-navy-600"
                     value={settings.excel_sheet_index}
                     onChange={setSetting('excel_sheet_index')}
                   />
-                  <p className="text-xs text-gray-400 mt-1">0 = primera hoja</p>
+                  <p className="text-xs text-slate-400 mt-1">0 = primera hoja</p>
                 </div>
                 <Select
                   label="Período de facturación YPF"
@@ -488,56 +506,56 @@ export default function SuperAdminPage() {
               </div>
             </div>
 
-            {/* Tarjetas y validación */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-base font-semibold text-gray-900 mb-4">Parámetros Operativos</h3>
+            {/* Parámetros operativos */}
+            <div className="bg-white rounded-lg border border-slate-200 p-6">
+              <h3 className="text-sm font-semibold text-slate-800 mb-4">Parámetros Operativos</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
                     Días de inactividad de tarjetas
                   </label>
                   <input
                     type="number"
                     min={1}
                     max={365}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-navy-600 focus:border-navy-600"
                     value={settings.card_inactivity_days}
                     onChange={setSetting('card_inactivity_days')}
                   />
-                  <p className="text-xs text-gray-400 mt-1">Para separar tarjetas activas/inactivas en el export</p>
+                  <p className="text-xs text-slate-400 mt-1">Para separar tarjetas activas/inactivas en el export</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
                     Tolerancia verde ($ diferencia)
                   </label>
                   <input
                     type="number"
                     min={0}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600"
                     value={settings.factura_tolerance_green}
                     onChange={setSetting('factura_tolerance_green')}
                   />
-                  <p className="text-xs text-gray-400 mt-1">Diferencia aceptable en validación de factura</p>
+                  <p className="text-xs text-slate-400 mt-1">Diferencia aceptable en validación de factura</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
                     Tolerancia amarilla ($ diferencia)
                   </label>
                   <input
                     type="number"
                     min={0}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                     value={settings.factura_tolerance_yellow}
                     onChange={setSetting('factura_tolerance_yellow')}
                   />
-                  <p className="text-xs text-gray-400 mt-1">Por encima → diferencia crítica (rojo)</p>
+                  <p className="text-xs text-slate-400 mt-1">Por encima → diferencia crítica (rojo)</p>
                 </div>
               </div>
             </div>
 
             <div className="flex justify-end">
               <Button onClick={handleSaveSettings} disabled={settingsSaving}>
-                <Save className="w-4 h-4 mr-2" />
+                <Save className="w-4 h-4 mr-2" aria-hidden="true" />
                 {settingsSaving ? 'Guardando...' : 'Guardar Configuración'}
               </Button>
             </div>
@@ -561,7 +579,7 @@ export default function SuperAdminPage() {
               { value: 'viewer', label: 'Visualizador' },
             ]}
           />
-          <div className="flex justify-end space-x-3 pt-2">
+          <div className="flex justify-end gap-3 pt-2">
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
             <Button onClick={handleCreateUser} disabled={saving}>{saving ? 'Guardando...' : 'Crear Usuario'}</Button>
           </div>
@@ -590,17 +608,13 @@ export default function SuperAdminPage() {
               onChange={e => setEditPassword(e.target.value)}
               placeholder="Dejar vacío para no cambiar"
             />
-            <div className="flex justify-end space-x-3 pt-2">
+            <div className="flex justify-end gap-3 pt-2">
               <Button variant="outline" onClick={() => setEditUser(null)}>Cancelar</Button>
               <Button onClick={handleEditUser} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Button>
             </div>
           </div>
         </Modal>
       )}
-
-      {toasts.map(toast => (
-        <ToastComponent key={toast.id} toast={toast} onClose={removeToast} />
-      ))}
     </MainLayout>
   )
 }

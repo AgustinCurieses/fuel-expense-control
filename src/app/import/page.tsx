@@ -171,8 +171,8 @@ export default function ImportPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Importación de Excel</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Cargue y procese archivos Excel de gastos de combustible</p>
+          <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Cargar Datos</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Cargue y procese archivos Excel de gastos de combustible (crudos YPF)</p>
         </div>
 
         {/* Progress Steps */}

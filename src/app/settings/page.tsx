@@ -14,7 +14,7 @@ export default function SettingsPage() {
   return (
     <MainLayout>
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Redirecting to Excel Mapper...</div>
+        <div className="text-slate-400 text-sm">Redirigiendo...</div>
       </div>
     </MainLayout>
   )

@@ -107,9 +107,10 @@ export function Sidebar({ isOpen, onToggle, currentUser, showLogo = false }: Sid
           </div>
           <button
             onClick={onToggle}
+            aria-label="Cerrar menú"
             className="lg:hidden p-1.5 rounded-md text-navy-200 hover:bg-navy-700 transition-colors flex-shrink-0"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
 

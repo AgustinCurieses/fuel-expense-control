@@ -211,16 +211,18 @@ export default function AlertsPage() {
               <div className="flex items-center gap-2">
                 <Input
                   type="date"
+                  label="Desde"
                   value={startDate}
                   onChange={e => setStartDate(e.target.value)}
-                  placeholder="Desde"
+                  aria-label="Fecha desde"
                 />
-                <span className="text-gray-400 text-sm">al</span>
+                <span className="text-slate-400 text-sm">al</span>
                 <Input
                   type="date"
+                  label="Hasta"
                   value={endDate}
                   onChange={e => setEndDate(e.target.value)}
-                  placeholder="Hasta"
+                  aria-label="Fecha hasta"
                 />
               </div>
             )}

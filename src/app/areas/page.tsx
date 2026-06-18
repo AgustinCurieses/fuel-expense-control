@@ -145,7 +145,7 @@ export default function AreasPage() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Gestión de Secretarías</h1>
+            <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Gestión de Áreas</h1>
             <p className="text-sm text-slate-500 mt-0.5">Administre secretarías y sus dependencias</p>
           </div>
           <Button onClick={() => { setEditingArea(null); setFormData({ name: '', type: 'main', parentAreaId: '' }); setIsModalOpen(true) }}>

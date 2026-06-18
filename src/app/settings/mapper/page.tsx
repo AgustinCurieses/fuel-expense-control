@@ -5,6 +5,7 @@ import { Save, Settings, ChevronDown, ChevronRight } from 'lucide-react'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { useToastContext } from '@/contexts/ToastContext'
 
 interface ImportMapping {
   internalField: string
@@ -38,8 +39,8 @@ export default function ExcelMapperPage() {
   const [useAlternativeImporte, setUseAlternativeImporte] = useState(false)
   const [importSettings, setImportSettings] = useState<ImportSettings[]>([])
   const [isSaving, setIsSaving] = useState(false)
-  const [savedMessage, setSavedMessage] = useState('')
   const [mappingExpanded, setMappingExpanded] = useState(false)
+  const { success: toastSuccess, error: toastError } = useToastContext()
 
   useEffect(() => { loadData() }, [])
 
@@ -76,11 +77,9 @@ export default function ExcelMapperPage() {
       })
       if (!response.ok) throw new Error('Failed to save settings')
       await loadData()
-      setSavedMessage('Configuración guardada exitosamente')
-      setTimeout(() => setSavedMessage(''), 3000)
+      toastSuccess('Configuración guardada')
     } catch {
-      setSavedMessage('Error al guardar la configuración')
-      setTimeout(() => setSavedMessage(''), 3000)
+      toastError('Error', 'No se pudo guardar la configuración')
     } finally {
       setIsSaving(false)
     }
@@ -101,8 +100,7 @@ export default function ExcelMapperPage() {
       importeYER: 'IMP TOT YER'
     })
     setUseAlternativeImporte(false)
-    setSavedMessage('Configuración reiniciada a valores predeterminados')
-    setTimeout(() => setSavedMessage(''), 3000)
+    toastSuccess('Valores reiniciados', 'Configuración predeterminada restaurada')
   }
 
   const fields: { key: keyof typeof columnMappings; label: string }[] = [
@@ -125,8 +123,8 @@ export default function ExcelMapperPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Configuración</h1>
-            <p className="text-gray-600">Parámetros generales del sistema de control de combustible</p>
+            <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Configuración</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Parámetros generales del sistema de control de combustible</p>
           </div>
           <div className="flex space-x-3">
             <Button variant="outline" onClick={handleReset}>
@@ -139,18 +137,11 @@ export default function ExcelMapperPage() {
           </div>
         </div>
 
-        {/* Success / error message */}
-        {savedMessage && (
-          <div className={`border rounded-lg p-4 ${savedMessage.startsWith('Error') ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
-            <p className={`text-sm ${savedMessage.startsWith('Error') ? 'text-red-800' : 'text-green-800'}`}>{savedMessage}</p>
-          </div>
-        )}
-
         {/* Importación Excel */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center space-x-2">
-            <Settings className="w-5 h-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Importación Excel</h2>
+        <div className="bg-white rounded-lg border border-slate-200">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+            <Settings className="w-4 h-4 text-navy-600" aria-hidden="true" />
+            <h2 className="text-sm font-semibold text-slate-800">Importación Excel</h2>
           </div>
 
           <div className="p-6 space-y-6">
@@ -162,16 +153,16 @@ export default function ExcelMapperPage() {
                 className="flex items-center justify-between w-full text-left group"
               >
                 <div>
-                  <p className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                  <p className="text-sm font-medium text-slate-800 group-hover:text-navy-600 transition-colors">
                     Mapeo de Columnas del Excel
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     {mappingExpanded ? 'Haga clic para contraer' : `${fields.length} campos configurados — haga clic para expandir`}
                   </p>
                 </div>
                 {mappingExpanded
-                  ? <ChevronDown className="w-4 h-4 text-gray-400" />
-                  : <ChevronRight className="w-4 h-4 text-gray-400" />
+                  ? <ChevronDown className="w-4 h-4 text-slate-400" />
+                  : <ChevronRight className="w-4 h-4 text-slate-400" />
                 }
               </button>
 
@@ -180,7 +171,7 @@ export default function ExcelMapperPage() {
                   <div className="grid grid-cols-1 gap-3">
                     {fields.map(({ key, label }) => (
                       <div key={key} className="grid grid-cols-3 gap-3 items-center">
-                        <label className="text-sm font-medium text-gray-700">{label}</label>
+                        <label className="text-sm font-medium text-slate-700">{label}</label>
                         <div className="col-span-2">
                           <Input
                             value={columnMappings[key]}
@@ -192,8 +183,8 @@ export default function ExcelMapperPage() {
                     ))}
                   </div>
 
-                  <div className="pt-4 border-t border-gray-100">
-                    <p className="text-sm font-medium text-gray-900 mb-3">Columna de Importe Activa</p>
+                  <div className="pt-4 border-t border-slate-100">
+                    <p className="text-sm font-medium text-slate-800 mb-3">Columna de Importe Activa</p>
                     <div className="space-y-2">
                       <label className="flex items-center space-x-3 cursor-pointer">
                         <input
@@ -202,11 +193,11 @@ export default function ExcelMapperPage() {
                           value="PVP"
                           checked={!useAlternativeImporte}
                           onChange={() => setUseAlternativeImporte(false)}
-                          className="text-blue-600 border-gray-300"
+                          className="text-navy-600 border-slate-300"
                         />
-                        <span className="text-sm text-gray-900">
+                        <span className="text-sm text-slate-800">
                           <span className="font-medium">IMP TOT PVP ESTABLECIMIENTO</span>
-                          <span className="text-gray-500 ml-1">— Precio en estación</span>
+                          <span className="text-slate-500 ml-1">— Precio en estación</span>
                         </span>
                       </label>
                       <label className="flex items-center space-x-3 cursor-pointer">
@@ -216,11 +207,11 @@ export default function ExcelMapperPage() {
                           value="YER"
                           checked={useAlternativeImporte}
                           onChange={() => setUseAlternativeImporte(true)}
-                          className="text-blue-600 border-gray-300"
+                          className="text-navy-600 border-slate-300"
                         />
-                        <span className="text-sm text-gray-900">
+                        <span className="text-sm text-slate-800">
                           <span className="font-medium">IMP TOT YER</span>
-                          <span className="text-gray-500 ml-1">— Precio contractual</span>
+                          <span className="text-slate-500 ml-1">— Precio contractual</span>
                         </span>
                       </label>
                     </div>

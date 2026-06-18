@@ -88,11 +88,12 @@ export function MainLayout({ children }: MainLayoutProps) {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setSidebarOpen(!sidebarOpen)}
+                  aria-label="Abrir menú"
                   className="lg:hidden p-2 rounded-md text-slate-500 hover:bg-slate-100 transition-colors"
                 >
-                  <Menu className="w-5 h-5" />
+                  <Menu className="w-5 h-5" aria-hidden="true" />
                 </button>
-                <h2 className="text-base font-semibold text-slate-800">{pageTitle}</h2>
+                <p className="text-base font-semibold text-slate-800">{pageTitle}</p>
               </div>
 
               <div className="flex items-center gap-4">
@@ -106,10 +107,10 @@ export function MainLayout({ children }: MainLayoutProps) {
                   </div>
                   <button
                     onClick={logout}
+                    aria-label="Cerrar sesión"
                     className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
-                    title="Cerrar sesión"
                   >
-                    <LogOut className="w-4 h-4" />
+                    <LogOut className="w-4 h-4" aria-hidden="true" />
                   </button>
                 </div>
               </div>

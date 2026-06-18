@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui/Button'
-import { Shield, ClipboardList } from 'lucide-react'
+import { ClipboardList } from 'lucide-react'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 interface AuditEntry {
   id: string
@@ -27,14 +28,14 @@ const ACTION_LABELS: Record<string, string> = {
 }
 
 const ACTION_COLORS: Record<string, string> = {
-  LOGIN:              'bg-green-50 text-green-800',
-  LOGOUT:             'bg-gray-100 text-gray-700',
-  IMPORT_EXCEL:       'bg-blue-50 text-blue-800',
-  ASSIGN_CARD:        'bg-purple-50 text-purple-800',
-  SAVE_FACTURA_TOTAL: 'bg-yellow-50 text-yellow-800',
-  CREATE_USER:        'bg-red-50 text-red-800',
-  UPDATE_USER:        'bg-orange-50 text-orange-800',
-  DEACTIVATE_USER:    'bg-red-100 text-red-800',
+  LOGIN:              'bg-green-50 text-green-800 border border-green-200',
+  LOGOUT:             'bg-slate-100 text-slate-600 border border-slate-200',
+  IMPORT_EXCEL:       'bg-navy-50 text-navy-700 border border-navy-200',
+  ASSIGN_CARD:        'bg-purple-50 text-purple-800 border border-purple-200',
+  SAVE_FACTURA_TOTAL: 'bg-amber-50 text-amber-800 border border-amber-200',
+  CREATE_USER:        'bg-red-50 text-red-700 border border-red-200',
+  UPDATE_USER:        'bg-orange-50 text-orange-700 border border-orange-200',
+  DEACTIVATE_USER:    'bg-red-100 text-red-800 border border-red-200',
 }
 
 export default function AdminPage() {
@@ -80,61 +81,59 @@ export default function AdminPage() {
     <MainLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <Shield className="w-6 h-6 text-red-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Panel de Administración</h1>
-              <p className="text-gray-500 text-sm">Registro de auditoría de la instancia</p>
-            </div>
-          </div>
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Administración</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Registro de auditoría de la instancia</p>
         </div>
 
         {/* Audit log */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center space-x-2">
-              <ClipboardList className="w-5 h-5 text-gray-500" />
-              <h2 className="text-lg font-semibold text-gray-900">Registro de Auditoría</h2>
+        <div className="bg-white rounded-lg border border-slate-200">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="w-4 h-4 text-slate-500" />
+              <h2 className="text-sm font-semibold text-slate-800">Registro de Auditoría</h2>
             </div>
-            <span className="text-sm text-gray-500">{auditTotal} registros</span>
+            <span className="text-xs text-slate-500">{auditTotal} registros</span>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuario</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Detalle</th>
+            <table className="min-w-full">
+              <thead>
+                <tr className="bg-navy-600">
+                  <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Fecha</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Usuario</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Acción</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Detalle</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-gray-400">Cargando...</td>
-                  </tr>
+                  Array.from({ length: 8 }).map((_, i) => (
+                    <tr key={i} className="border-t border-slate-100">
+                      <td className="px-5 py-3"><Skeleton className="h-3 w-28" /></td>
+                      <td className="px-5 py-3"><Skeleton className="h-4 w-40" /></td>
+                      <td className="px-5 py-3"><Skeleton className="h-5 w-32 rounded-full" /></td>
+                      <td className="px-5 py-3"><Skeleton className="h-3 w-48" /></td>
+                    </tr>
+                  ))
                 ) : auditLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-gray-400">Sin registros aún</td>
+                    <td colSpan={4} className="px-5 py-12 text-center text-sm text-slate-500">Sin registros aún</td>
                   </tr>
                 ) : auditLogs.map(log => (
-                  <tr key={log.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-3 text-sm text-gray-500 whitespace-nowrap">
+                  <tr key={log.id} className="hover:bg-slate-50">
+                    <td className="px-5 py-3 text-xs text-slate-500 whitespace-nowrap font-mono">
                       {formatDate(log.createdAt)}
                     </td>
-                    <td className="px-6 py-3 text-sm text-gray-900">
+                    <td className="px-5 py-3 text-sm text-slate-700">
                       {log.userEmail ?? '—'}
                     </td>
-                    <td className="px-6 py-3">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${ACTION_COLORS[log.action] ?? 'bg-gray-100 text-gray-700'}`}>
+                    <td className="px-5 py-3">
+                      <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${ACTION_COLORS[log.action] ?? 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
                         {ACTION_LABELS[log.action] ?? log.action}
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-sm text-gray-500 max-w-sm truncate">
+                    <td className="px-5 py-3 text-xs text-slate-500 max-w-sm truncate">
                       {formatDetail(log.detail)}
                     </td>
                   </tr>
@@ -144,15 +143,15 @@ export default function AdminPage() {
           </div>
 
           {auditPages > 1 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
-              <span className="text-sm text-gray-500">
+            <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100">
+              <span className="text-sm text-slate-500">
                 Página {auditPage} de {auditPages} · {auditTotal} registros
               </span>
-              <div className="flex space-x-2">
-                <Button variant="outline" onClick={() => setAuditPage(p => p - 1)} disabled={auditPage === 1}>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setAuditPage(p => p - 1)} disabled={auditPage === 1}>
                   Anterior
                 </Button>
-                <Button variant="outline" onClick={() => setAuditPage(p => p + 1)} disabled={auditPage === auditPages}>
+                <Button variant="outline" size="sm" onClick={() => setAuditPage(p => p + 1)} disabled={auditPage === auditPages}>
                   Siguiente
                 </Button>
               </div>

@@ -95,9 +95,10 @@ fuel-expense-control/
 │   │   │   ├── Button.tsx
 │   │   │   ├── Input.tsx
 │   │   │   ├── Select.tsx
-│   │   │   ├── Modal.tsx
+│   │   │   ├── Modal.tsx              # Focus trap + Escape + ARIA roles incluidos
 │   │   │   ├── Toast.tsx
-│   │   │   ├── Badge.tsx
+│   │   │   ├── Badge.tsx              # Variantes: success/warning/danger/info/neutral/navy
+│   │   │   ├── Skeleton.tsx           # Placeholder animado para estados de carga
 │   │   │   ├── StatCard.tsx
 │   │   │   ├── PageHeader.tsx
 │   │   │   ├── Spinner.tsx
@@ -315,6 +316,60 @@ Paleta: navy `#1F3864`, azul claro `#BDD7EE`, azul KPI `#E8F0FE`
 
 ---
 
+## Sistema de Diseño
+
+### Paleta de colores — SOLO `slate` y `navy`
+**Nunca usar `gray-*` ni `blue-*`** en componentes UI. La paleta correcta es:
+
+| Uso | Clase |
+|-----|-------|
+| Texto principal | `text-slate-800` |
+| Texto secundario | `text-slate-600` / `text-slate-500` |
+| Texto placeholder/hint | `text-slate-400` |
+| Borde estándar | `border-slate-200` |
+| Fondo hover | `hover:bg-slate-50` |
+| Divisor de tabla | `divide-slate-100` / `border-slate-100` |
+| Acento primario | `text-navy-600` / `bg-navy-600` |
+| Acento suave | `bg-navy-50` / `text-navy-700` |
+| Header de tabla | `bg-navy-600` con `text-white/80` |
+| Focus ring | `focus:ring-navy-600 focus:border-navy-600` |
+
+**No usar `shadow-sm`** en cards — solo `border border-slate-200`.
+
+### Toasts — siempre `useToastContext`
+```typescript
+const { success, error, warning, info } = useToastContext()
+// NUNCA usar alert(), confirm() nativos ni el hook local useToast()
+```
+
+### Componentes — usar los existentes, no reinventar
+- **Badges de estado:** usar `<Badge variant="success|warning|danger|info|neutral">`, no `<span>` inline con clases manuales
+- **Loading states:** usar `<Skeleton className="h-4 w-24" />` con `animate-pulse`, no texto "Cargando..."
+- **Modales:** usar `<Modal>` — ya tiene focus trap, cierre con Escape y ARIA roles. No necesita configuración extra.
+- **Confirmación de acciones destructivas:** usar `confirm()` del browser hasta que haya un componente de diálogo dedicado
+
+### Accesibilidad
+- Botones de solo-ícono: siempre `aria-label` + `title` (tooltip nativo)
+- Íconos decorativos: `aria-hidden="true"`
+- Headers de tabla: `scope="col"`
+- Columnas ordenables: `aria-sort="ascending|descending|none"`
+- No usar `<h2>` en el layout si la página tiene su propio `<h1>` — el `<p>` en MainLayout es intencional
+
+### Dashboard
+- 4 KPI cards en grid `sm:grid-cols-2 xl:grid-cols-4`:
+  1. Última Factura
+  2. Precios de Combustible
+  3. Alertas de Combustible (con link a `/alerts`)
+  4. Estado del Sistema (tarjetas pendientes + última importación)
+- Skeleton loading para KPI cards, tabla de consumo y lista de facturas
+
+### Reportes (`/reports`)
+- Header con `flex-col sm:flex-row` para que los botones bajen a su propia línea en mobile
+- Summary cards solo visibles cuando hay resultados (`fuelLogs.length > 0`)
+- `loadData` solo carga áreas y facturas (no import-settings — el modal de settings fue eliminado)
+
+---
+
 ## Convenciones Críticas
 
 ### Formato de moneda argentina
@@ -417,6 +472,10 @@ fs.appendFileSync('debug.log', JSON.stringify(data) + '\n')
 | 238 tarjetas en seed en lugar de 235 (3 extras) | Pendiente |
 | 20 tarjetas con patente válida tenían `allowedFuel="ambos"` incorrectamente | Corregidas en seed.ts (pendiente reset-dev) |
 | `/api/auth/me` devuelve usuario hardcodeado — sin validación backend real | ✅ Resuelto |
+| Paleta gray/blue mezclada con slate/navy en cards, admin, superadmin, settings, reports | ✅ Resuelto |
+| `alert()`/`confirm()` nativos en cards, reports, settings | ✅ Resuelto |
+| Modal sin focus trap, Escape ni ARIA roles | ✅ Resuelto |
+| Dashboard con 3 KPIs mezclando alertas + sistema en uno | ✅ Resuelto (4 KPIs separados) |
 
 ---
 
@@ -442,12 +501,10 @@ fs.appendFileSync('debug.log', JSON.stringify(data) + '\n')
 
 ## Pendientes (orden de prioridad)
 
-1. **Resumen Ejecutivo mensual** — popup selector de mes al hacer click en el botón (agrupar facturas del mes seleccionado)
-2. **Fix KPIs Resumen Ejecutivo** — alturas de fila (h=1) y distribución por combustible (solo 2 de 4 tipos)
-3. **Dashboard** — reemplazar cuadrado azul "gasto del mes" por total de la última factura importada
-4. **Inactividad de tarjetas** — cambiar default a 15 días + badge visual en tabla de `/cards`
-5. **Seguridad (pendiente)** — timeout de sesión automático, límite de intentos de login
-6. **Dominio propio**
+1. **Fix KPIs Resumen Ejecutivo** — alturas de fila (h=1) y distribución por combustible (solo 2 de 4 tipos)
+2. **Inactividad de tarjetas** — cambiar default a 15 días + badge visual en tabla de `/cards`
+3. **Seguridad (pendiente)** — timeout de sesión automático, límite de intentos de login
+4. **Dominio propio**
 
 ---
 

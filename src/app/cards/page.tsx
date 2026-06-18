@@ -1,12 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, CreditCard, Save, X, Search, AlertCircle, Download, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, CreditCard, Save, X, Search, AlertCircle, Download, ChevronUp, ChevronDown, Pencil, ArrowRightLeft, History, Trash2 } from 'lucide-react'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
+import { useToastContext } from '@/contexts/ToastContext'
 import { Card, MainArea, SubArea, CardFormData } from '@/types'
 
 interface PendingCard {
@@ -55,6 +58,7 @@ export default function CardsPage() {
     subAreaId: ''
   })
   const [isLoading, setIsLoading] = useState(true)
+  const { success, error: toastError } = useToastContext()
 
   // Export cards function
   const handleExportCards = async () => {
@@ -79,9 +83,9 @@ export default function CardsPage() {
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
-    } catch (error) {
-      console.error('Error exporting cards:', error)
-      alert('Error al exportar tarjetas')
+    } catch (err) {
+      console.error('Error exporting cards:', err)
+      toastError('Error al exportar', 'No se pudieron exportar las tarjetas')
     }
   }
 
@@ -227,15 +231,17 @@ export default function CardsPage() {
   }
 
   const handleDelete = async (card: Card) => {
+    const label = card.identification ? `"${card.identification}"` : `tarjeta ${card.cardNumber}`
+    if (!confirm(`¿Eliminar ${label}? Esta acción no se puede deshacer.`)) return
     try {
       const response = await fetch(`/api/cards?id=${card.id}`, {
         method: 'DELETE'
       })
-      
+
       if (!response.ok) {
         throw new Error('Failed to delete card')
       }
-      
+
       await loadData()
     } catch (err) {
       console.error('Error deleting card:', err)
@@ -278,17 +284,13 @@ export default function CardsPage() {
       }
 
       const result = await response.json()
-      
-      // Show success message
-      alert(`Tarjeta asignada. ${result.updatedCount} cargas actualizadas.`)
-      
-      // Close modal and refresh data
+      success('Tarjeta asignada', `${result.updatedCount} cargas actualizadas`)
       setIsAssignModalOpen(false)
       setAssigningCard(null)
       await loadData()
     } catch (err) {
       console.error('Error assigning card:', err)
-      alert('Error al asignar tarjeta')
+      toastError('Error', 'No se pudo asignar la tarjeta')
     }
   }
 
@@ -329,10 +331,10 @@ export default function CardsPage() {
       await loadData()
       setIsReassignModalOpen(false)
       setReassigningCard(null)
-      alert('Área reasignada correctamente.')
+      success('Área reasignada', 'Los cambios se guardaron correctamente')
     } catch (err) {
       console.error('Error reassigning card:', err)
-      alert('Error al reasignar área')
+      toastError('Error', 'No se pudo reasignar el área')
     }
   }
 
@@ -374,7 +376,7 @@ export default function CardsPage() {
 
   const formatDate = (date: Date | string) => {
     const dateObj = typeof date === 'string' ? new Date(date) : date
-    return dateObj.toLocaleDateString()
+    return dateObj.toLocaleDateString('es-AR')
   }
 
   return (
@@ -383,8 +385,8 @@ export default function CardsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Asignación de Tarjetas</h1>
-            <p className="text-gray-600">Administre las tarjetas de combustible y asígnelas a áreas</p>
+            <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Tarjetas</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Administre las tarjetas de combustible y asígnelas a áreas</p>
           </div>
           <div className="flex space-x-3">
             <Button onClick={handleExportCards} variant="outline">
@@ -400,66 +402,55 @@ export default function CardsPage() {
 
 
         {/* Pending Cards Section */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center space-x-2">
-              <AlertCircle className="w-5 h-5 text-orange-500" />
-              <h2 className="text-lg font-semibold text-gray-900">
+        <div className="bg-white rounded-lg border border-slate-200">
+          <div className="px-5 py-4 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-500" />
+              <h2 className="text-sm font-semibold text-slate-800">
                 Tarjetas Pendientes de Asignación
-                {pendingCards.length > 0 && (
-                  <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                    {pendingCards.length}
-                  </span>
-                )}
               </h2>
+              {pendingCards.length > 0 && (
+                <Badge variant="warning">{pendingCards.length}</Badge>
+              )}
             </div>
           </div>
-          
-          <div className="p-6">
+
+          <div className="p-5">
             {pendingCards.length === 0 ? (
               <div className="text-center py-8">
-                <div className="text-green-600 font-medium">No hay tarjetas pendientes de asignación</div>
-                <div className="text-gray-500 text-sm mt-1">Todas las tarjetas han sido asignadas correctamente</div>
+                <p className="text-sm font-medium text-green-700">Sin tarjetas pendientes</p>
+                <p className="text-xs text-slate-500 mt-1">Todas las tarjetas han sido asignadas correctamente</p>
               </div>
             ) : (
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Número de Tarjeta
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Identificación
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Cargas Pendientes
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Acciones
-                    </th>
+              <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-navy-600">
+                    <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Nro. Tarjeta</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Identificación</th>
+                    <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Cargas pendientes</th>
+                    <th className="px-5 py-3 text-right text-xs font-medium text-white/80 uppercase tracking-wider">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-slate-100">
                   {pendingCards.map((pendingCard) => (
-                    <tr key={pendingCard.cardNumber} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <CreditCard className="w-4 h-4 text-orange-400 mr-2" />
-                          <span className="text-sm font-medium text-gray-900">{pendingCard.cardNumber}</span>
+                    <tr key={pendingCard.cardNumber} className="hover:bg-slate-50">
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span className="text-sm font-medium text-slate-800 font-mono">{pendingCard.cardNumber}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900">{pendingCard.identification || '-'}</span>
+                      <td className="px-5 py-3 whitespace-nowrap text-sm text-slate-700">
+                        {pendingCard.identification || <span className="text-slate-400">—</span>}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
-                          {pendingCard.count}
-                        </span>
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        <Badge variant="warning">{pendingCard.count}</Badge>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <td className="px-5 py-3 whitespace-nowrap text-right">
                         <button
                           onClick={() => handleAssignCard(pendingCard)}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="text-sm font-medium text-navy-600 hover:text-navy-800"
                         >
                           Asignar
                         </button>
@@ -468,38 +459,37 @@ export default function CardsPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </div>
 
         {/* Cards Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-white rounded-lg border border-slate-200">
           {/* Table header + filters */}
-          <div className="px-6 py-4 border-b border-gray-200 space-y-3">
+          <div className="px-5 py-4 border-b border-slate-100 space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <CreditCard className="w-5 h-5 text-blue-600" />
-                <h2 className="text-lg font-semibold text-gray-900">Tarjetas Registradas</h2>
-                <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                  {filteredCards.length} de {cards.length}
-                </span>
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-navy-600" />
+                <h2 className="text-sm font-semibold text-slate-800">Tarjetas Registradas</h2>
+                <Badge variant="info">{filteredCards.length} de {cards.length}</Badge>
               </div>
             </div>
 
             {/* Filter row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-navy-600 focus:border-navy-600 text-slate-800"
                   placeholder="Nro. o identificación..."
                   value={searchTerm}
                   onChange={handleFilterChange(setSearchTerm)}
                 />
               </div>
               <select
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-navy-600 focus:border-navy-600 text-slate-800"
                 value={filterAreaId}
                 onChange={handleFilterChange(setFilterAreaId)}
               >
@@ -507,7 +497,7 @@ export default function CardsPage() {
                 {mainAreas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
               <select
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-navy-600 focus:border-navy-600 text-slate-800"
                 value={filterCardType}
                 onChange={handleFilterChange(setFilterCardType)}
               >
@@ -516,7 +506,7 @@ export default function CardsPage() {
                 <option value="maquinaria">Maquinaria</option>
               </select>
               <select
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-navy-600 focus:border-navy-600 text-slate-800"
                 value={filterAllowedFuel}
                 onChange={handleFilterChange(setFilterAllowedFuel)}
               >
@@ -532,45 +522,57 @@ export default function CardsPage() {
             <table className="min-w-full">
               <thead>
                 <tr className="bg-navy-600">
-                  <th className="px-5 py-3 text-left">
-                    <button onClick={() => handleSort('cardNumber')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
+                  <th scope="col" className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('cardNumber')} aria-sort={sortColumn === 'cardNumber' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Nro. Tarjeta <SortIcon col="cardNumber" />
                     </button>
                   </th>
-                  <th className="px-5 py-3 text-left">
-                    <button onClick={() => handleSort('identification')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
+                  <th scope="col" className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('identification')} aria-sort={sortColumn === 'identification' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Identificación <SortIcon col="identification" />
                     </button>
                   </th>
-                  <th className="px-5 py-3 text-left">
-                    <button onClick={() => handleSort('area')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
+                  <th scope="col" className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('area')} aria-sort={sortColumn === 'area' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Secretaría <SortIcon col="area" />
                     </button>
                   </th>
-                  <th className="px-5 py-3 text-left">
-                    <button onClick={() => handleSort('subArea')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
+                  <th scope="col" className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('subArea')} aria-sort={sortColumn === 'subArea' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Dependencia <SortIcon col="subArea" />
                     </button>
                   </th>
-                  <th className="px-5 py-3 text-left">
-                    <button onClick={() => handleSort('cardType')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
+                  <th scope="col" className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('cardType')} aria-sort={sortColumn === 'cardType' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Tipo <SortIcon col="cardType" />
                     </button>
                   </th>
-                  <th className="px-5 py-3 text-left">
-                    <button onClick={() => handleSort('allowedFuel')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
+                  <th scope="col" className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('allowedFuel')} aria-sort={sortColumn === 'allowedFuel' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Combustible <SortIcon col="allowedFuel" />
                     </button>
                   </th>
-                  <th className="px-5 py-3 text-right text-xs font-medium text-white/80 uppercase tracking-wider">
+                  <th scope="col" className="px-5 py-3 text-right text-xs font-medium text-white/80 uppercase tracking-wider">
                     Acciones
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {paginatedCards.length === 0 ? (
+                {isLoading ? (
+                  Array.from({ length: 8 }).map((_, i) => (
+                    <tr key={i} className="border-t border-slate-100">
+                      <td className="px-5 py-3.5"><Skeleton className="h-4 w-20" /></td>
+                      <td className="px-5 py-3.5"><Skeleton className="h-4 w-24" /></td>
+                      <td className="px-5 py-3.5"><Skeleton className="h-5 w-28 rounded-full" /></td>
+                      <td className="px-5 py-3.5"><Skeleton className="h-5 w-24 rounded-full" /></td>
+                      <td className="px-5 py-3.5"><Skeleton className="h-4 w-16" /></td>
+                      <td className="px-5 py-3.5"><Skeleton className="h-4 w-14" /></td>
+                      <td className="px-5 py-3.5 text-right"><Skeleton className="h-6 w-20 ml-auto" /></td>
+                    </tr>
+                  ))
+                ) : paginatedCards.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-400">
+                    <td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-500">
                       No se encontraron tarjetas con los filtros aplicados.
                     </td>
                   </tr>
@@ -605,19 +607,41 @@ export default function CardsPage() {
                     <td className="px-5 py-3.5 whitespace-nowrap text-sm text-slate-700 capitalize">
                       {card.allowedFuel || '—'}
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                      <button onClick={() => handleEdit(card)} className="text-navy-600 hover:text-navy-800">
-                        Editar
-                      </button>
-                      <button onClick={() => handleReassignCard(card)} className="text-slate-600 hover:text-slate-900">
-                        Reasignar
-                      </button>
-                      <button onClick={() => handleViewHistory(card)} className="text-slate-600 hover:text-slate-900">
-                        Historial
-                      </button>
-                      <button onClick={() => handleDelete(card)} className="text-red-700 hover:text-red-900">
-                        Eliminar
-                      </button>
+                    <td className="px-5 py-3.5 whitespace-nowrap text-right">
+                      <div className="flex items-center justify-end gap-0.5">
+                        <button
+                          onClick={() => handleEdit(card)}
+                          aria-label="Editar tarjeta"
+                          title="Editar"
+                          className="p-1.5 text-navy-600 hover:bg-navy-50 rounded-md transition-colors"
+                        >
+                          <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                        </button>
+                        <button
+                          onClick={() => handleReassignCard(card)}
+                          aria-label="Reasignar área"
+                          title="Reasignar"
+                          className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md transition-colors"
+                        >
+                          <ArrowRightLeft className="w-3.5 h-3.5" aria-hidden="true" />
+                        </button>
+                        <button
+                          onClick={() => handleViewHistory(card)}
+                          aria-label="Ver historial de áreas"
+                          title="Historial"
+                          className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md transition-colors"
+                        >
+                          <History className="w-3.5 h-3.5" aria-hidden="true" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(card)}
+                          aria-label="Eliminar tarjeta"
+                          title="Eliminar"
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -714,7 +738,7 @@ export default function CardsPage() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Tipo de Tarjeta
               </label>
               <div className="flex space-x-4">
@@ -734,7 +758,7 @@ export default function CardsPage() {
                     }}
                     className="mr-2"
                   />
-                  <span className="text-sm text-gray-700">Vehículo</span>
+                  <span className="text-sm text-slate-700">Vehículo</span>
                 </label>
                 <label className="flex items-center">
                   <input
@@ -751,20 +775,20 @@ export default function CardsPage() {
                     }}
                     className="mr-2"
                   />
-                  <span className="text-sm text-gray-700">Maquinaria o Equipo</span>
+                  <span className="text-sm text-slate-700">Maquinaria o Equipo</span>
                 </label>
               </div>
             </div>
 
             {formData.cardType === 'vehiculo' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
                   Combustible Permitido
                 </label>
                 <select
                   value={formData.allowedFuel || 'nafta'}
                   onChange={(e) => setFormData({ ...formData, allowedFuel: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-navy-600 focus:border-navy-600"
                 >
                   <option value="nafta">Nafta (Super/Infinia)</option>
                   <option value="gasoil">Gasoil (Diesel)</option>
@@ -793,11 +817,11 @@ export default function CardsPage() {
           size="md"
         >
           <form onSubmit={handleAssignSubmit} className="space-y-4">
-            <div className="bg-gray-50 p-3 rounded-lg">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+              <label className="block text-xs font-medium text-slate-500 mb-1">
                 Número de Tarjeta
               </label>
-              <div className="text-sm font-semibold text-gray-900">
+              <div className="text-sm font-medium text-slate-800">
                 {assigningCard?.cardNumber}
               </div>
             </div>
@@ -848,29 +872,29 @@ export default function CardsPage() {
           size="md"
         >
           <form onSubmit={handleReassignSubmit} className="space-y-4">
-            <div className="bg-gray-50 p-3 rounded-lg">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+              <label className="block text-xs font-medium text-slate-500 mb-1">
                 Número de Tarjeta
               </label>
-              <div className="text-sm font-semibold text-gray-900">
+              <div className="text-sm font-medium text-slate-800">
                 {reassigningCard?.cardNumber}
               </div>
             </div>
 
-            <div className="bg-gray-50 p-3 rounded-lg">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+              <label className="block text-xs font-medium text-slate-500 mb-1">
                 Identificación Actual
               </label>
-              <div className="text-sm font-semibold text-gray-900">
+              <div className="text-sm font-medium text-slate-800">
                 {reassigningCard?.identification || '-'}
               </div>
             </div>
 
-            <div className="bg-gray-50 p-3 rounded-lg">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+              <label className="block text-xs font-medium text-slate-500 mb-1">
                 Área Actual
               </label>
-              <div className="text-sm font-semibold text-gray-900">
+              <div className="text-sm font-medium text-slate-800">
                 {reassigningCard ? `${getAreaName(reassigningCard.areaId)} - ${reassigningCard.subAreaId ? getSubAreaName(reassigningCard.subAreaId) : 'Sin subárea'}` : '-'}
               </div>
             </div>
@@ -914,54 +938,40 @@ export default function CardsPage() {
           size="lg"
         >
           <div className="space-y-4">
-            <div className="bg-gray-50 p-3 rounded-lg">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+              <label className="block text-xs font-medium text-slate-500 mb-1">
                 Tarjeta
               </label>
-              <div className="text-sm font-semibold text-gray-900">
+              <div className="text-sm font-medium text-slate-800">
                 {historyCard?.cardNumber} - {historyCard?.identification || '-'}
               </div>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Área Principal
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Sub-área
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Desde
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Hasta
-                    </th>
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-navy-600">
+                    <th className="px-5 py-2.5 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Área Principal</th>
+                    <th className="px-5 py-2.5 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Sub-área</th>
+                    <th className="px-5 py-2.5 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Desde</th>
+                    <th className="px-5 py-2.5 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Hasta</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-slate-100">
                   {cardHistory.map((record) => (
-                    <tr key={record.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {record.mainArea?.name || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {record.subArea?.name || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatDate(record.validFrom)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {record.validTo ? formatDate(record.validTo) : 'Actual'}
+                    <tr key={record.id} className="hover:bg-slate-50">
+                      <td className="px-5 py-3 whitespace-nowrap text-sm text-slate-800">{record.mainArea?.name || '—'}</td>
+                      <td className="px-5 py-3 whitespace-nowrap text-sm text-slate-600">{record.subArea?.name || '—'}</td>
+                      <td className="px-5 py-3 whitespace-nowrap text-sm text-slate-600">{formatDate(record.validFrom)}</td>
+                      <td className="px-5 py-3 whitespace-nowrap text-sm text-slate-600">
+                        {record.validTo ? formatDate(record.validTo) : <span className="font-medium text-green-700">Actual</span>}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               {cardHistory.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-sm text-slate-400">
                   No hay historial disponible
                 </div>
               )}
