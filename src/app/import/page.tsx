@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle, ArrowRight, Clock } from 'lucide-react'
 import { clsx } from 'clsx'
 import { MainLayout } from '@/components/layout/MainLayout'
@@ -22,51 +22,90 @@ export default function ImportPage() {
   // Factura validation modal
   const [showValidation, setShowValidation] = useState(false)
   const [validationFacturas, setValidationFacturas] = useState<string[]>([])
-  const [facturaCalcTotals, setFacturaCalcTotals] = useState<Record<string, string>>({})
+  const [facturaCalcTotals, setFacturaCalcTotals] = useState<Record<string, number>>({})
   const [facturaInputs, setFacturaInputs] = useState<Record<string, string>>({})
+  const [facturaResults, setFacturaResults] = useState<Record<string, { ok: boolean; diferencia: number }>>({})
   const [isSavingValidation, setIsSavingValidation] = useState(false)
-  const [savedFacturas, setSavedFacturas] = useState<Set<string>>(new Set())
+  const [toleranceGreen, setToleranceGreen] = useState(1)
+  const [toleranceYellow, setToleranceYellow] = useState(100)
+
+  useEffect(() => {
+    fetch('/api/superadmin/settings')
+      .then(r => r.json())
+      .then(d => {
+        if (d.factura_tolerance_green) setToleranceGreen(parseFloat(d.factura_tolerance_green))
+        if (d.factura_tolerance_yellow) setToleranceYellow(parseFloat(d.factura_tolerance_yellow))
+      })
+      .catch(() => {})
+
+    // Al cargar la página, verificar si hay facturas importadas sin validar
+    fetch('/api/facturas')
+      .then(r => r.json())
+      .then((facturas: Array<{ factura: string; hasTotal: boolean }>) => {
+        const pendientes = facturas.filter(f => !f.hasTotal).map(f => f.factura)
+        if (pendientes.length > 0) openValidationModal(pendientes)
+      })
+      .catch(() => {})
+  }, [])
 
   const openValidationModal = async (facturas: string[]) => {
-    const totals: Record<string, string> = {}
+    const totals: Record<string, number> = {}
     const inputs: Record<string, string> = {}
     await Promise.all(facturas.map(async (f: string) => {
       try {
         const res = await fetch(`/api/facturas/total?factura=${encodeURIComponent(f)}`)
         if (res.ok) {
           const data = await res.json()
-          totals[f] = data.totalCalculadoFormateado ?? ''
+          totals[f] = data.totalCalculado ?? 0
           if (data.totalOficial) inputs[f] = data.totalOficial.toString()
         }
       } catch {}
     }))
     setFacturaCalcTotals(totals)
     setFacturaInputs(inputs)
+    setFacturaResults({})
     setValidationFacturas(facturas)
-    setSavedFacturas(new Set())
     setShowValidation(true)
+  }
+
+  const formatARS = (n: number) =>
+    '$ ' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+
+  const getSemaforo = (diferencia: number) => {
+    const abs = Math.abs(diferencia)
+    if (abs <= toleranceGreen) return { color: 'text-green-700 bg-green-50 border-green-200', label: 'OK' }
+    if (abs <= toleranceYellow) return { color: 'text-yellow-700 bg-yellow-50 border-yellow-200', label: 'Diferencia menor' }
+    return { color: 'text-red-700 bg-red-50 border-red-200', label: 'Diferencia crítica' }
+  }
+
+  const allValidated = validationFacturas.every(f => facturaResults[f]?.ok)
+
+  const handleSaveFactura = async (f: string) => {
+    const val = facturaInputs[f]
+    if (!val) return
+    const parsed = parseFloat(val.replace(/\./g, '').replace(',', '.'))
+    if (isNaN(parsed) || parsed <= 0) return
+    try {
+      const res = await fetch('/api/facturas/total', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ factura: f, totalOficial: parsed })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setFacturaResults(prev => ({ ...prev, [f]: { ok: true, diferencia: data.diferencia ?? 0 } }))
+      }
+    } catch {}
   }
 
   const handleSaveValidation = async () => {
     setIsSavingValidation(true)
-    const saved = new Set<string>()
     for (const f of validationFacturas) {
-      const val = facturaInputs[f]
-      if (!val) continue
-      const parsed = parseFloat(val.replace(/\./g, '').replace(',', '.'))
-      if (isNaN(parsed) || parsed <= 0) continue
-      try {
-        const res = await fetch('/api/facturas/total', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ factura: f, totalOficial: parsed })
-        })
-        if (res.ok) saved.add(f)
-      } catch {}
+      if (!facturaResults[f]?.ok) {
+        await handleSaveFactura(f)
+      }
     }
-    setSavedFacturas(saved)
     setIsSavingValidation(false)
-    setShowValidation(false)
   }
 
   const handleFileSelect = async (file: File) => {
@@ -124,7 +163,7 @@ export default function ImportPage() {
     setValidationFacturas([])
     setFacturaInputs({})
     setFacturaCalcTotals({})
-    setSavedFacturas(new Set())
+    setFacturaResults({})
   }
 
   return (
@@ -268,56 +307,92 @@ export default function ImportPage() {
         )}
       </div>
 
-      {/* Factura Validation Modal */}
+      {/* Factura Validation Modal — obligatorio, no se puede cerrar sin validar */}
       <Modal
         isOpen={showValidation}
-        onClose={() => setShowValidation(false)}
+        onClose={() => {}}
         title="Validar Totales de Factura"
         size="lg"
+        locked={!allValidated}
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-500">
-            Se detectaron las siguientes facturas en la importación. Ingrese el total oficial de YPF para cada una y guarde para completar la validación.
-          </p>
-
-          <div className="space-y-3">
-            {validationFacturas.map(f => (
-              <div key={f} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-semibold text-gray-900">Factura {f}</p>
-                  {savedFacturas.has(f) && (
-                    <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-                      <CheckCircle className="w-3.5 h-3.5" />
-                      Validada
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-4 items-end">
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Total calculado (App)</p>
-                    <p className="text-base font-bold text-blue-600">{facturaCalcTotals[f] ?? '—'}</p>
-                  </div>
-                  <div>
-                    <Input
-                      label="Total Oficial YPF"
-                      value={facturaInputs[f] ?? ''}
-                      onChange={e => setFacturaInputs(prev => ({ ...prev, [f]: e.target.value }))}
-                      placeholder="Ej: 1234567.89"
-                      type="text"
-                      inputMode="decimal"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-800">
+              Ingresá el total oficial de cada factura según el documento de YPF antes de continuar. Este paso es obligatorio.
+            </p>
           </div>
 
-          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
-            <Button variant="outline" onClick={() => setShowValidation(false)}>
-              Omitir
-            </Button>
-            <Button onClick={handleSaveValidation} disabled={isSavingValidation}>
-              {isSavingValidation ? 'Guardando...' : 'Guardar validación'}
+          <div className="space-y-3">
+            {validationFacturas.map(f => {
+              const result = facturaResults[f]
+              const semaforo = result ? getSemaforo(result.diferencia) : null
+              return (
+                <div key={f} className={`border rounded-lg p-4 transition-colors ${result ? 'border-green-200 bg-green-50/30' : 'border-gray-200'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-semibold text-gray-900">Factura {f}</p>
+                    {result && semaforo && (
+                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${semaforo.color}`}>
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        {semaforo.label}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 items-end">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Total calculado (App)</p>
+                      <p className="text-base font-bold text-blue-600">
+                        {facturaCalcTotals[f] != null ? formatARS(facturaCalcTotals[f]) : '—'}
+                      </p>
+                    </div>
+                    <div>
+                      {result ? (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Total Oficial YPF</p>
+                          <p className="text-base font-bold text-gray-800">
+                            {formatARS(parseFloat(facturaInputs[f].replace(/\./g, '').replace(',', '.')))}
+                          </p>
+                          {result.diferencia !== 0 && (
+                            <p className={`text-xs mt-1 ${Math.abs(result.diferencia) > toleranceYellow ? 'text-red-600' : Math.abs(result.diferencia) > toleranceGreen ? 'text-yellow-600' : 'text-green-600'}`}>
+                              Diferencia: {formatARS(result.diferencia)}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex gap-2 items-end">
+                          <div className="flex-1">
+                            <Input
+                              label="Total Oficial YPF"
+                              value={facturaInputs[f] ?? ''}
+                              onChange={e => setFacturaInputs(prev => ({ ...prev, [f]: e.target.value }))}
+                              placeholder="Ej: 1234567.89"
+                              type="text"
+                              inputMode="decimal"
+                            />
+                          </div>
+                          <Button
+                            onClick={() => handleSaveFactura(f)}
+                            disabled={!facturaInputs[f]}
+                            size="sm"
+                          >
+                            Guardar
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="flex justify-end pt-2 border-t border-gray-100">
+            <Button
+              onClick={() => setShowValidation(false)}
+              disabled={!allValidated}
+            >
+              {allValidated ? 'Cerrar' : `Faltan ${validationFacturas.filter(f => !facturaResults[f]?.ok).length} por validar`}
             </Button>
           </div>
         </div>

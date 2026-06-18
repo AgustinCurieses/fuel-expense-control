@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/database'
 import { logAction } from '@/lib/audit'
+import { requireRole } from '@/lib/serverAuth'
+import bcrypt from 'bcryptjs'
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  const { error } = await requireRole(request, 'admin')
+  if (error) return error
+
   try {
-    const { name, role, isActive } = await request.json()
+    const { name, role, isActive, password } = await request.json()
     const { id } = params
 
     const current = await prisma.user.findUnique({ where: { id } })
@@ -12,13 +17,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
     }
 
+    const updateData: Record<string, unknown> = {}
+    if (name !== undefined) updateData.name = name
+    if (role !== undefined) updateData.role = role
+    if (isActive !== undefined) updateData.isActive = isActive
+    if (password) updateData.password = await bcrypt.hash(password, 10)
+
     const updated = await prisma.user.update({
       where: { id },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(role !== undefined && { role }),
-        ...(isActive !== undefined && { isActive })
-      },
+      data: updateData,
       select: { id: true, email: true, name: true, role: true, isActive: true, createdAt: true }
     })
 
@@ -27,7 +34,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       action,
       entity: 'User',
       entityId: id,
-      detail: { email: current.email, changes: { name, role, isActive } }
+      detail: { email: current.email, changes: { name, role, isActive, passwordChanged: !!password } }
     })
 
     return NextResponse.json(updated)
@@ -37,6 +44,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+  const { error } = await requireRole(_request, 'admin')
+  if (error) return error
+
   try {
     const { id } = params
 

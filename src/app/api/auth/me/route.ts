@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { getSession } from '@/lib/serverAuth'
 
-export async function GET() {
-  return NextResponse.json({
-    id: '1',
-    name: 'Administrador',
-    email: 'admin@municipalidad.gob.ar',
-    role: 'admin'
-  })
+export async function GET(request: NextRequest) {
+  const user = await getSession(request)
+  if (!user) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+  return NextResponse.json(user)
 }

@@ -69,13 +69,15 @@ export default function HomePage() {
     ultimasFacturas: []
   })
   const [loading, setLoading] = useState(true)
+  const [facturassinvalidar, setFacturasSinValidar] = useState<string[]>([])
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [dashboardResponse, alertsResponse] = await Promise.all([
+        const [dashboardResponse, alertsResponse, facturasResponse] = await Promise.all([
           fetch('/api/dashboard'),
-          fetch('/api/alerts/fuel-type')
+          fetch('/api/alerts/fuel-type'),
+          fetch('/api/facturas')
         ])
         if (dashboardResponse.ok) {
           const data = await dashboardResponse.json()
@@ -84,6 +86,13 @@ export default function HomePage() {
         if (alertsResponse.ok) {
           const alertsData = await alertsResponse.json()
           setDashboardData(prev => ({ ...prev, fuelTypeAlerts: alertsData }))
+        }
+        if (facturasResponse.ok) {
+          const facturasData = await facturasResponse.json()
+          const pendientes = facturasData
+            .filter((f: { factura: string; hasTotal: boolean }) => !f.hasTotal)
+            .map((f: { factura: string }) => f.factura)
+          setFacturasSinValidar(pendientes)
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
@@ -100,6 +109,31 @@ export default function HomePage() {
   return (
     <MainLayout>
       <div className="space-y-5">
+
+        {/* Banner facturas sin validar */}
+        {facturassinvalidar.length > 0 && (
+          <div className="flex items-center justify-between gap-4 p-4 bg-red-50 border border-red-300 rounded-lg">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-red-800">
+                  {facturassinvalidar.length === 1
+                    ? `Hay 1 factura pendiente de validación`
+                    : `Hay ${facturassinvalidar.length} facturas pendientes de validación`}
+                </p>
+                <p className="text-xs text-red-600 mt-0.5">
+                  {facturassinvalidar.join(', ')} — El monto oficial de YPF no fue ingresado.
+                </p>
+              </div>
+            </div>
+            <a
+              href="/import"
+              className="shrink-0 text-xs font-semibold text-red-700 bg-red-100 hover:bg-red-200 border border-red-300 px-3 py-1.5 rounded-md transition-colors"
+            >
+              Validar ahora
+            </a>
+          </div>
+        )}
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

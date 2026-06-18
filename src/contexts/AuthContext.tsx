@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { AuthService, User, AuthState } from '@/lib/auth'
-import { useRouter } from 'next/navigation'
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>
@@ -17,10 +16,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated: false,
     isLoading: true
   })
-  const router = useRouter()
 
   useEffect(() => {
-    // Check authentication on mount
     const user = AuthService.getCurrentUser()
     setAuthState({
       user,

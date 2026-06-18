@@ -31,6 +31,7 @@ interface SystemSettings {
   billing_period: string
   factura_tolerance_green: string
   factura_tolerance_yellow: string
+  show_org_logo: string
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -55,6 +56,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   billing_period:           'quincenal',
   factura_tolerance_green:  '1',
   factura_tolerance_yellow: '100',
+  show_org_logo:            'false',
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -74,10 +76,12 @@ export default function SuperAdminPage() {
   const [newEmail, setNewEmail] = useState('')
   const [newName, setNewName] = useState('')
   const [newRole, setNewRole] = useState('editor')
+  const [newPassword, setNewPassword] = useState('')
   const [saving, setSaving] = useState(false)
   const [editUser, setEditUser] = useState<AdminUser | null>(null)
   const [editName, setEditName] = useState('')
   const [editRole, setEditRole] = useState('')
+  const [editPassword, setEditPassword] = useState('')
 
   // System settings
   const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SETTINGS)
@@ -131,17 +135,18 @@ export default function SuperAdminPage() {
 
   const handleCreateUser = async () => {
     if (!newEmail) { toastError('Email requerido', ''); return }
+    if (!newPassword) { toastError('Contraseña requerida', ''); return }
     setSaving(true)
     try {
       const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: newEmail, name: newName || undefined, role: newRole }),
+        body: JSON.stringify({ email: newEmail, name: newName || undefined, role: newRole, password: newPassword }),
       })
       if (res.ok) {
         toastSuccess('Usuario creado', newEmail)
         setShowCreate(false)
-        setNewEmail(''); setNewName(''); setNewRole('editor')
+        setNewEmail(''); setNewName(''); setNewRole('editor'); setNewPassword('')
         loadUsers()
       } else {
         const data = await res.json()
@@ -156,14 +161,17 @@ export default function SuperAdminPage() {
     if (!editUser) return
     setSaving(true)
     try {
+      const body: Record<string, string> = { name: editName, role: editRole }
+      if (editPassword) body.password = editPassword
       const res = await fetch(`/api/admin/users/${editUser.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName, role: editRole }),
+        body: JSON.stringify(body),
       })
       if (res.ok) {
         toastSuccess('Usuario actualizado', editUser.email)
         setEditUser(null)
+        setEditPassword('')
         loadUsers()
       } else {
         toastError('Error al actualizar', '')
@@ -202,6 +210,7 @@ export default function SuperAdminPage() {
     setEditUser(user)
     setEditName(user.name ?? '')
     setEditRole(user.role)
+    setEditPassword('')
   }
 
   // ── System settings ───────────────────────────────────────────────────────
@@ -427,6 +436,24 @@ export default function SuperAdminPage() {
                     onChange={setSetting('org_province')}
                     placeholder="Buenos Aires"
                   />
+                  <div className="md:col-span-2">
+                    <label className="flex items-center gap-3 cursor-pointer w-fit">
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={settings.show_org_logo === 'true'}
+                          onChange={e => setSettings(prev => ({ ...prev, show_org_logo: e.target.checked ? 'true' : 'false' }))}
+                        />
+                        <div className={`w-10 h-6 rounded-full transition-colors ${settings.show_org_logo === 'true' ? 'bg-blue-600' : 'bg-gray-300'}`} />
+                        <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.show_org_logo === 'true' ? 'translate-x-4' : ''}`} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">Mostrar logo en el sidebar</p>
+                        <p className="text-xs text-gray-400">El archivo debe estar en <code className="bg-gray-100 px-1 rounded">public/logo-municipalidad.png</code></p>
+                      </div>
+                    </label>
+                  </div>
                 </div>
               )}
             </div>
@@ -523,6 +550,7 @@ export default function SuperAdminPage() {
         <div className="space-y-4">
           <Input label="Email" type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="usuario@municipalidad.gob.ar" />
           <Input label="Nombre completo" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Nombre completo" />
+          <Input label="Contraseña" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Contraseña inicial" />
           <Select
             label="Rol"
             value={newRole}
@@ -554,6 +582,13 @@ export default function SuperAdminPage() {
                 { value: 'editor', label: 'Editor' },
                 { value: 'viewer', label: 'Visualizador' },
               ]}
+            />
+            <Input
+              label="Nueva contraseña"
+              type="password"
+              value={editPassword}
+              onChange={e => setEditPassword(e.target.value)}
+              placeholder="Dejar vacío para no cambiar"
             />
             <div className="flex justify-end space-x-3 pt-2">
               <Button variant="outline" onClick={() => setEditUser(null)}>Cancelar</Button>

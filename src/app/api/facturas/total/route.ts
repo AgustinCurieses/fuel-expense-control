@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/database'
+import { requireRole } from '@/lib/serverAuth'
 
 // Helper function to format currency in Argentine format
 function formatCurrency(amount: number): string {
@@ -62,6 +63,9 @@ export async function GET(request: NextRequest) {
 
 // POST - Save or update factura total
 export async function POST(request: NextRequest) {
+  const { error } = await requireRole(request, 'editor')
+  if (error) return error
+
   try {
     const body = await request.json()
     const { factura, totalOficial } = body

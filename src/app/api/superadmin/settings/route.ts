@@ -10,6 +10,7 @@ const DEFAULTS: Record<string, string> = {
   billing_period:            'quincenal',
   factura_tolerance_green:   '1',
   factura_tolerance_yellow:  '100',
+  show_org_logo:             'false',
 }
 
 export async function GET() {

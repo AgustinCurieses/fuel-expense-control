@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
@@ -22,7 +23,7 @@ const data = [
   { cardNumber: '70841431000163074', identification: 'PIW408', mainArea: 'Salud', subArea: 'HOSPITAL', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431000163090', identification: 'LXM732', mainArea: 'Salud', subArea: 'HOSPITAL', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431000163355', identification: 'AC252CG', mainArea: 'Proteccion Ciudadana', subArea: 'COMISARIA OPEN DOOR', cardType: 'vehiculo', allowedFuel: 'nafta' },
-  { cardNumber: '70841431000164163', identification: 'OHE179', mainArea: 'Proteccion Ciudadana', subArea: 'PROTECCION', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431000164163', identification: 'OHE179', mainArea: 'Proteccion Ciudadana', subArea: 'PROTECCION', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431000164197', identification: 'PBM497', mainArea: 'Obras Publicas', subArea: 'OBRAS PÚBLICAS', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431000164288', identification: 'AB095KX', mainArea: 'Proteccion Ciudadana', subArea: 'SECRETARIA', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431000164312', identification: 'AB095KY', mainArea: 'Proteccion Ciudadana', subArea: 'COM', cardType: 'vehiculo', allowedFuel: 'nafta' },
@@ -41,7 +42,7 @@ const data = [
   { cardNumber: '70841431000165079', identification: 'AA835CO', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA VIAL', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431000165087', identification: 'HWO271', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA VIAL', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431000165095', identification: 'AA864BN', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA BOMBEROS', cardType: 'vehiculo', allowedFuel: 'nafta' },
-  { cardNumber: '70841431000165103', identification: 'AB043WX', mainArea: 'Proteccion Ciudadana', subArea: 'DROGAS', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431000165103', identification: 'AB043WX', mainArea: 'Proteccion Ciudadana', subArea: 'DROGAS', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431000165152', identification: 'AD076AO', mainArea: 'Proteccion Ciudadana', subArea: 'COMISARÍA 2DA JAUREGUI', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431000165178', identification: 'PAV930', mainArea: 'Proteccion Ciudadana', subArea: 'COMISARÍA 2DA JAUREGUI', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431000165210', identification: 'AC429OG', mainArea: 'Proteccion Ciudadana', subArea: 'COMISARÍA 1RA', cardType: 'vehiculo', allowedFuel: 'nafta' },
@@ -62,9 +63,9 @@ const data = [
   { cardNumber: '70841431000176035', identification: 'ONE647', mainArea: 'Servicios Publicos', subArea: 'SERVICIOS SANITARIOS', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431000176050', identification: 'OPP826', mainArea: 'Servicios Publicos', subArea: 'SERVICIOS SANITARIOS', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431000178288', identification: 'AB960IJ', mainArea: 'Salud', subArea: 'SALUD', cardType: 'vehiculo', allowedFuel: 'gasoil' },
-  { cardNumber: '70841431000187966', identification: 'aa873nz', mainArea: 'Gobierno', subArea: 'DELEGACIÓN OPEN DOOR', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431000187966', identification: 'aa873nz', mainArea: 'Gobierno', subArea: 'DELEGACIÓN OPEN DOOR', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431000198385', identification: 'AD002XF', mainArea: 'Jefatura de Gabinete', subArea: 'DEFENSA CIVIL', cardType: 'vehiculo', allowedFuel: 'nafta' },
-  { cardNumber: '70841431000199490', identification: 'DFJ05', mainArea: 'Gobierno', subArea: 'DELEGACIÓN OPEN DOOR', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431000199490', identification: 'DFJ05', mainArea: 'Gobierno', subArea: 'DELEGACIÓN OPEN DOOR', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431000199540', identification: 'CQY78', mainArea: 'Gobierno', subArea: 'DELEGACIÓN TORRES', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431000199573', identification: 'WSP922', mainArea: 'Gobierno', subArea: 'DELEGACIÓN PUEBLO NUEVO', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431000200397', identification: 'MXQ475', mainArea: 'Servicios Publicos', subArea: 'TALLER 1', cardType: 'vehiculo', allowedFuel: 'nafta' },
@@ -132,20 +133,20 @@ const data = [
   { cardNumber: '70841431001744575', identification: 'AF716YU', mainArea: 'Gobierno', subArea: 'SECRETARIA', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431001754319', identification: 'AE424PR', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431001814618', identification: 'WKF113', mainArea: 'Servicios Publicos', subArea: 'TALLER 1', cardType: 'maquinaria', allowedFuel: 'ambos' },
-  { cardNumber: '70841431001857716', identification: 'AE377RL', mainArea: 'Proteccion Ciudadana', subArea: 'PROTECCION CIUDADANA', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431001857716', identification: 'AE377RL', mainArea: 'Proteccion Ciudadana', subArea: 'PROTECCION CIUDADANA', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431001884322', identification: 'CORTINEZ', mainArea: 'Gobierno', subArea: 'DELEGACIÓN CORTINEZ', cardType: 'maquinaria', allowedFuel: 'ambos' },
   { cardNumber: '70841431001935900', identification: 'CZT585', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431001950594', identification: 'DEFENSACIVIL', mainArea: 'Jefatura de Gabinete', subArea: 'DEFENSA CIVIL', cardType: 'maquinaria', allowedFuel: 'ambos' },
-  { cardNumber: '70841431001965238', identification: 'AF689RJ', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'ambos' },
-  { cardNumber: '70841431001965345', identification: 'AF729ND', mainArea: 'Proteccion Ciudadana', subArea: 'PROTECCION CIUDADANA', cardType: 'vehiculo', allowedFuel: 'ambos' },
-  { cardNumber: '70841431001965360', identification: 'AF729WZ', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431001965238', identification: 'AF689RJ', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'gasoil' },
+  { cardNumber: '70841431001965345', identification: 'AF729ND', mainArea: 'Proteccion Ciudadana', subArea: 'PROTECCION CIUDADANA', cardType: 'vehiculo', allowedFuel: 'gasoil' },
+  { cardNumber: '70841431001965360', identification: 'AF729WZ', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431001965378', identification: 'AF729WW', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'nafta' },
-  { cardNumber: '70841431001965386', identification: 'AF772NP', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431001965386', identification: 'AF772NP', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431001965394', identification: 'AF843UD', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'gasoil' },
-  { cardNumber: '70841431001965402', identification: 'AF747XK', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431001965402', identification: 'AF747XK', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431001965410', identification: 'AF781BY', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'gasoil' },
-  { cardNumber: '70841431001965436', identification: 'AF781BZ', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'ambos' },
-  { cardNumber: '70841431002113630', identification: 'AF430TL', mainArea: 'Proteccion Ciudadana', subArea: 'COMISARIA DE LA MUJER', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431001965436', identification: 'AF781BZ', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'gasoil' },
+  { cardNumber: '70841431002113630', identification: 'AF430TL', mainArea: 'Proteccion Ciudadana', subArea: 'COMISARIA DE LA MUJER', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431002113663', identification: 'AF430TN', mainArea: 'Proteccion Ciudadana', subArea: 'COMANDO PATRULLA', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431002166729', identification: 'AA893SA', mainArea: 'Servicios Publicos', subArea: 'TALLER 1', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431002166737', identification: 'TALLER', mainArea: 'Servicios Publicos', subArea: 'TALLER 1', cardType: 'maquinaria', allowedFuel: 'ambos' },
@@ -167,10 +168,10 @@ const data = [
   { cardNumber: '70841431002564063', identification: 'ESP. VERDE', mainArea: 'Servicios Publicos', subArea: 'ESPACIOS VERDES', cardType: 'maquinaria', allowedFuel: 'ambos' },
   { cardNumber: '70841431002564071', identification: 'EWD09', mainArea: 'Servicios Publicos', subArea: 'TALLER 1', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431002572314', identification: 'AG528MG', mainArea: 'Proteccion Ciudadana', subArea: 'SECRETARIA', cardType: 'vehiculo', allowedFuel: 'nafta' },
-  { cardNumber: '70841431002575978', identification: 'CQY69', mainArea: 'Gobierno', subArea: 'DELEGACIÓN TORRES', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431002575978', identification: 'CQY69', mainArea: 'Gobierno', subArea: 'DELEGACIÓN TORRES', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431002587684', identification: 'AG191UW', mainArea: 'Proteccion Ciudadana', subArea: 'GUARDIA URBANA', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431002592080', identification: 'WHS684', mainArea: 'Servicios Publicos', subArea: 'SERVICIOS SANITARIOS', cardType: 'vehiculo', allowedFuel: 'nafta' },
-  { cardNumber: '70841431002714411', identification: 'DOQ869', mainArea: 'Gobierno', subArea: 'DELEGACIÓN TORRES', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431002714411', identification: 'DOQ869', mainArea: 'Gobierno', subArea: 'DELEGACIÓN TORRES', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431002881756', identification: 'AA873NX', mainArea: 'Servicios Publicos', subArea: 'TALLER 1', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431003130740', identification: 'AD 174 HI', mainArea: 'Salud', subArea: 'POLICLÍNICO', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431003194290', identification: 'A224SVF', mainArea: 'Proteccion Ciudadana', subArea: 'GUARDIA URBANA', cardType: 'vehiculo', allowedFuel: 'nafta' },
@@ -190,28 +191,28 @@ const data = [
   { cardNumber: '70841431003517458', identification: 'AG924IP', mainArea: 'Proteccion Ciudadana', subArea: 'GUARDIA URBANA', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431003517466', identification: 'AG893QU', mainArea: 'Proteccion Ciudadana', subArea: 'GUARDIA URBANA', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431003517581', identification: 'AG893QT', mainArea: 'Proteccion Ciudadana', subArea: 'GUARDIA URBANA', cardType: 'vehiculo', allowedFuel: 'nafta' },
-  { cardNumber: '70841431003517599', identification: 'AG857AX', mainArea: 'Proteccion Ciudadana', subArea: 'PROTECCIÓN CIUDADANA', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431003517599', identification: 'AG857AX', mainArea: 'Proteccion Ciudadana', subArea: 'PROTECCIÓN CIUDADANA', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431003517649', identification: 'AG857AQ', mainArea: 'Proteccion Ciudadana', subArea: 'DESTACAMENTO BRAHAMA', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431003517664', identification: 'AG857AV', mainArea: 'Proteccion Ciudadana', subArea: 'PROTECCIÓN CIUDADANA', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431003517672', identification: 'AG857AT', mainArea: 'Proteccion Ciudadana', subArea: 'PROTECCIÓN CIUDADANA', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431003517680', identification: 'AG857AU', mainArea: 'Proteccion Ciudadana', subArea: 'COMANDO DE PATRULLAS', cardType: 'vehiculo', allowedFuel: 'nafta' },
-  { cardNumber: '70841431003517698', identification: 'AG857AY', mainArea: 'Proteccion Ciudadana', subArea: 'DESTACAMENTO ESTACIÓN', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431003517698', identification: 'AG857AY', mainArea: 'Proteccion Ciudadana', subArea: 'DESTACAMENTO ESTACIÓN', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431003517714', identification: 'AG857AS', mainArea: 'Proteccion Ciudadana', subArea: 'PROTECCIÓN CIUDADANA', cardType: 'vehiculo', allowedFuel: 'nafta' },
-  { cardNumber: '70841431003517730', identification: 'AG857AZ', mainArea: 'Proteccion Ciudadana', subArea: 'COMISARIA LUJÁN 1RA', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431003517730', identification: 'AG857AZ', mainArea: 'Proteccion Ciudadana', subArea: 'COMISARIA LUJÁN 1RA', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431003584011', identification: 'NZA023', mainArea: 'Proteccion Ciudadana', subArea: 'SECRETARÍA', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431003585265', identification: 'AG893QW', mainArea: 'Proteccion Ciudadana', subArea: 'GUARDIA URBANA', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431003723601', identification: 'PAZ618', mainArea: 'Gobierno', subArea: 'DELEGACIÓN OLIVERA', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431003723619', identification: 'PAZ619', mainArea: 'Jefatura de Gabinete', subArea: 'COMUNICACIONES', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431003766816', identification: '5341', mainArea: 'Desarrollo Productivo', subArea: 'PRODUCCIÓN', cardType: 'maquinaria', allowedFuel: 'ambos' },
   { cardNumber: '70841431003797928', identification: 'AH230ZZ', mainArea: 'Desarrollo Humano', subArea: 'SECRETARÍA', cardType: 'vehiculo', allowedFuel: 'nafta' },
-  { cardNumber: '70841431003797969', identification: 'AH230ZY', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431003797969', identification: 'AH230ZY', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431003797977', identification: 'AH230ZW', mainArea: 'Obras Publicas', subArea: 'OBRAS PÚBLICAS', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431003798280', identification: 'AH230ZV', mainArea: 'Intendencia', subArea: 'PRIVADA', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431003798306', identification: 'AH230ZX', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431003798330', identification: 'AH132QS', mainArea: 'Proteccion Ciudadana', subArea: 'GUARDIA URBANA', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431003798397', identification: 'AH132QT', mainArea: 'Proteccion Ciudadana', subArea: 'GUARDIA URBANA', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431003798439', identification: 'AH132QQ', mainArea: 'Proteccion Ciudadana', subArea: 'GUARDIA URBANA', cardType: 'vehiculo', allowedFuel: 'gasoil' },
-  { cardNumber: '70841431003798496', identification: 'AH132QR', mainArea: 'Proteccion Ciudadana', subArea: 'GUARDIA URBANA', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431003798496', identification: 'AH132QR', mainArea: 'Proteccion Ciudadana', subArea: 'GUARDIA URBANA', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431003803395', identification: 'A224SVG', mainArea: 'Proteccion Ciudadana', subArea: 'TRÁNSITO', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431003840546', identification: 'AA873NY', mainArea: 'Gobierno', subArea: 'DELEGACIÓN PUEBLO NUEVO', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431003840561', identification: 'PUEBLO NUEVO', mainArea: 'Gobierno', subArea: 'DELEGACIÓN PUEBLO NUEVO', cardType: 'maquinaria', allowedFuel: 'ambos' },
@@ -219,10 +220,10 @@ const data = [
   { cardNumber: '70841431003875765', identification: 'KPT941', mainArea: 'Desarrollo Productivo', subArea: 'PRODUCCIÓN', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431003889907', identification: 'AG857AU', mainArea: 'Proteccion Ciudadana', subArea: 'GUARDIA URBANA', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431003889923', identification: 'AG857AW', mainArea: 'Proteccion Ciudadana', subArea: 'GUARDIA URBANA', cardType: 'vehiculo', allowedFuel: 'nafta' },
-  { cardNumber: '70841431003889931', identification: 'AF734LF', mainArea: 'Proteccion Ciudadana', subArea: 'GUARDIA URBANA', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431003889931', identification: 'AF734LF', mainArea: 'Proteccion Ciudadana', subArea: 'GUARDIA URBANA', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431003942631', identification: 'AE512SW', mainArea: 'Servicios Publicos', subArea: 'RESIDUOS SÓLIDOS', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431003970632', identification: 'AH413ZQ', mainArea: 'Proteccion Ciudadana', subArea: 'TRÁNSITO', cardType: 'vehiculo', allowedFuel: 'nafta' },
-  { cardNumber: '70841431003970657', identification: 'AH369YQ', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431003970657', identification: 'AH369YQ', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431003970673', identification: 'AH369YP', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431003977413', identification: 'AH369YO', mainArea: 'Servicios Publicos', subArea: 'TALLER 1', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431004003086', identification: 'HUH686', mainArea: 'Proteccion Ciudadana', subArea: 'PROTECCIÓN', cardType: 'vehiculo', allowedFuel: 'gasoil' },
@@ -231,7 +232,7 @@ const data = [
   { cardNumber: '70841431004063767', identification: 'DEG24', mainArea: 'Gobierno', subArea: 'DELEGACIÓN OLIVERA', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431004169937', identification: 'WSF923', mainArea: 'Gobierno', subArea: 'DELEGACIÓN OLIVERA', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431004208974', identification: 'AG409JF', mainArea: 'Servicios Publicos', subArea: 'AGUA CORRIENTE', cardType: 'vehiculo', allowedFuel: 'gasoil' },
-  { cardNumber: '70841431004231414', identification: 'AB043WS', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'ambos' },
+  { cardNumber: '70841431004231414', identification: 'AB043WS', mainArea: 'Proteccion Ciudadana', subArea: 'POLICIA LOCAL', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431004272269', identification: 'AH413ZP', mainArea: 'Proteccion Ciudadana', subArea: 'TRÁNSITO', cardType: 'vehiculo', allowedFuel: 'nafta' },
   { cardNumber: '70841431004276476', identification: 'AG344TS', mainArea: 'Salud', subArea: 'HOSPITAL', cardType: 'vehiculo', allowedFuel: 'gasoil' },
   { cardNumber: '70841431004321389', identification: 'WRW349', mainArea: 'Gobierno', subArea: 'DELEGACIÓN PUEBLO NUEVO', cardType: 'vehiculo', allowedFuel: 'gasoil' },
@@ -244,11 +245,20 @@ const data = [
 async function main() {
   console.log('🌱 Starting database seeding...')
 
-  const user = await prisma.user.findFirst()
-  if (!user) {
-    console.error('❌ No user found. Please create a user first.')
-    return
-  }
+  // Create default admin user
+  const adminPassword = await bcrypt.hash('admin123', 10)
+  const user = await prisma.user.upsert({
+    where: { email: 'admin@municipalidad.gob.ar' },
+    update: { password: adminPassword },
+    create: {
+      email: 'admin@municipalidad.gob.ar',
+      name: 'Administrador',
+      password: adminPassword,
+      role: 'admin',
+      isActive: true,
+    }
+  })
+  console.log('✅ Admin user ready (admin@municipalidad.gob.ar / admin123)')
 
   // Get unique main areas
   const uniqueMainAreas = Array.from(new Set(data.map(item => item.mainArea)))

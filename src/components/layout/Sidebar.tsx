@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
+import Image from 'next/image'
 import {
   Home,
   CreditCard,
@@ -12,16 +13,18 @@ import {
   Fuel,
   TrendingUp,
   AlertTriangle,
-  Shield,
-  ShieldCheck
+  Shield
 } from 'lucide-react'
 import { clsx } from 'clsx'
+
+type UserRole = 'admin' | 'editor' | 'viewer'
 
 interface SidebarItem {
   id: string
   label: string
   icon: React.ReactNode
   href: string
+  roles: UserRole[]
 }
 
 interface SidebarProps {
@@ -30,23 +33,37 @@ interface SidebarProps {
   currentUser?: {
     name: string | null
     email: string | null
+    role?: string | null
   }
+  showLogo?: boolean
 }
 
+const ROLE_LABELS: Record<UserRole, string> = {
+  admin: 'Administrador',
+  editor: 'Editor',
+  viewer: 'Visualizador',
+}
+
+const ALL_ROLES: UserRole[] = ['viewer', 'editor', 'admin']
+const EDITOR_UP: UserRole[] = ['editor', 'admin']
+const ADMIN_ONLY: UserRole[] = ['admin']
+
 const sidebarItems: SidebarItem[] = [
-  { id: 'dashboard', label: 'Panel de Control',  icon: <Home className="w-4 h-4" />,          href: '/' },
-  { id: 'import',    label: 'Cargar Datos',       icon: <FileSpreadsheet className="w-4 h-4" />, href: '/import' },
-  { id: 'reports',   label: 'Reportes',           icon: <TrendingUp className="w-4 h-4" />,     href: '/reports' },
-  { id: 'alerts',    label: 'Alertas',            icon: <AlertTriangle className="w-4 h-4" />,  href: '/alerts' },
-  { id: 'areas',     label: 'Gestión de Áreas',   icon: <MapPin className="w-4 h-4" />,         href: '/areas' },
-  { id: 'cards',     label: 'Tarjetas',           icon: <CreditCard className="w-4 h-4" />,     href: '/cards' },
-  { id: 'settings',  label: 'Configuración',      icon: <Settings className="w-4 h-4" />,       href: '/settings/mapper' },
-  { id: 'admin',     label: 'Administración',     icon: <Shield className="w-4 h-4" />,         href: '/admin' },
-  { id: 'superadmin',label: 'Super Admin',        icon: <ShieldCheck className="w-4 h-4" />,    href: '/superadmin' },
+  { id: 'dashboard', label: 'Panel de Control',  icon: <Home className="w-4 h-4" />,          href: '/',               roles: ALL_ROLES  },
+  { id: 'import',    label: 'Cargar Datos',       icon: <FileSpreadsheet className="w-4 h-4" />, href: '/import',       roles: EDITOR_UP  },
+  { id: 'reports',   label: 'Reportes',           icon: <TrendingUp className="w-4 h-4" />,     href: '/reports',       roles: ALL_ROLES  },
+  { id: 'alerts',    label: 'Alertas',            icon: <AlertTriangle className="w-4 h-4" />,  href: '/alerts',        roles: ALL_ROLES  },
+  { id: 'cards',     label: 'Tarjetas',           icon: <CreditCard className="w-4 h-4" />,     href: '/cards',         roles: ALL_ROLES  },
+  { id: 'areas',     label: 'Gestión de Áreas',   icon: <MapPin className="w-4 h-4" />,         href: '/areas',         roles: ADMIN_ONLY },
+  { id: 'settings',  label: 'Configuración',      icon: <Settings className="w-4 h-4" />,       href: '/settings/mapper', roles: ADMIN_ONLY },
+  { id: 'admin',     label: 'Administración',     icon: <Shield className="w-4 h-4" />,         href: '/admin',         roles: ADMIN_ONLY },
 ]
 
-export function Sidebar({ isOpen, onToggle, currentUser }: SidebarProps) {
+export function Sidebar({ isOpen, onToggle, currentUser, showLogo = false }: SidebarProps) {
   const pathname = usePathname()
+  const userRole = (currentUser?.role as UserRole) ?? 'viewer'
+
+  const visibleItems = sidebarItems.filter(item => item.roles.includes(userRole))
 
   return (
     <>
@@ -68,18 +85,29 @@ export function Sidebar({ isOpen, onToggle, currentUser }: SidebarProps) {
       )}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-5 border-b border-navy-700">
-          <div className="flex items-center gap-3">
-            <div className="p-1.5 bg-white/10 rounded-lg">
-              <Fuel className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-white leading-tight">FuelControl</p>
-              <p className="text-xs text-navy-200 leading-tight">Mun. de Luján</p>
+          <div className="flex items-center gap-3 min-w-0">
+            {showLogo ? (
+              <div className="w-8 h-8 flex-shrink-0 relative">
+                <Image
+                  src="/logo-municipalidad.png"
+                  alt="Logo"
+                  fill
+                  className="object-contain"
+                />
+              </div>
+            ) : (
+              <div className="p-1.5 bg-white/10 rounded-lg flex-shrink-0">
+                <Fuel className="w-5 h-5 text-white" />
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white leading-tight truncate">FuelControl</p>
+              <p className="text-xs text-navy-200 leading-tight truncate">Mun. de Luján</p>
             </div>
           </div>
           <button
             onClick={onToggle}
-            className="lg:hidden p-1.5 rounded-md text-navy-200 hover:bg-navy-700 transition-colors"
+            className="lg:hidden p-1.5 rounded-md text-navy-200 hover:bg-navy-700 transition-colors flex-shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -88,8 +116,8 @@ export function Sidebar({ isOpen, onToggle, currentUser }: SidebarProps) {
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 overflow-y-auto">
           <ul className="space-y-0.5">
-            {sidebarItems.map((item) => {
-              const isActive = pathname === item.href
+            {visibleItems.map((item) => {
+              const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
               return (
                 <li key={item.id}>
                   <a
@@ -122,7 +150,9 @@ export function Sidebar({ isOpen, onToggle, currentUser }: SidebarProps) {
             </div>
             <div className="min-w-0">
               <p className="text-xs font-medium text-white truncate">{currentUser?.name || '—'}</p>
-              <p className="text-xs text-navy-300 truncate">{currentUser?.email || ''}</p>
+              <p className="text-xs text-navy-300 truncate">
+                {userRole !== 'viewer' || currentUser?.role ? ROLE_LABELS[userRole] : ''}
+              </p>
             </div>
           </div>
         </div>

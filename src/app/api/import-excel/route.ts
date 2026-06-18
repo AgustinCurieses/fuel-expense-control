@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx'
 import { logAction } from '@/lib/audit'
 import { prisma } from '@/lib/database'
 import { getSystemSettings } from '@/lib/system-settings'
+import { requireRole } from '@/lib/serverAuth'
 
 // Helper function to resolve card area based on history
 async function getCardAreaAtDate(cardId: string, date: Date) {
@@ -26,6 +27,9 @@ async function getCardAreaAtDate(cardId: string, date: Date) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireRole(request, 'editor')
+  if (error) return error
+
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File

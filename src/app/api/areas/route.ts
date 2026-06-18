@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/database'
+import { requireRole } from '@/lib/serverAuth'
 
 export async function GET() {
   try {
@@ -30,6 +31,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireRole(request, 'admin')
+  if (error) return error
+
   try {
     const body = await request.json()
     const { type, name, parentAreaId } = body
@@ -65,6 +69,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const { error } = await requireRole(request, 'admin')
+  if (error) return error
+
   try {
     const body = await request.json()
     const { id, type, name, parentAreaId } = body
@@ -102,6 +109,9 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const { error } = await requireRole(request, 'admin')
+  if (error) return error
+
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')

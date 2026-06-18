@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/database'
+import { requireRole } from '@/lib/serverAuth'
 
 export async function GET(request: NextRequest) {
+  const { error } = await requireRole(request, 'admin')
+  if (error) return error
+
   try {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') ?? '1')

@@ -8,9 +8,10 @@ interface ModalProps {
   title: string
   children: React.ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
+  locked?: boolean
 }
 
-export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, size = 'md', locked = false }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
@@ -27,7 +28,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
       <div className="flex min-h-screen items-center justify-center p-4">
         <div
           className="fixed inset-0 bg-slate-900/40 transition-opacity"
-          onClick={onClose}
+          onClick={locked ? undefined : onClose}
         />
         <div className={clsx(
           'relative bg-white rounded-lg shadow-lg max-w-full w-full',
@@ -41,12 +42,14 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
             <h3 className="text-base font-semibold text-slate-800">{title}</h3>
-            <button
-              onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            {!locked && (
+              <button
+                onClick={onClose}
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
           {/* Body */}
           <div className="p-6">

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/database'
 import { logAction } from '@/lib/audit'
+import { requireRole } from '@/lib/serverAuth'
 
 // Resolve the area assigned to a card at a specific date using CardAreaHistory
 async function getCardAreaAtDate(cardId: string, date: Date) {
@@ -24,6 +25,9 @@ async function getCardAreaAtDate(cardId: string, date: Date) {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireRole(request, 'editor')
+  if (error) return error
+
   try {
     const { cardNumber, identification, mainAreaId, subAreaId } = await request.json()
 

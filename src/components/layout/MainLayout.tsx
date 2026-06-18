@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Menu, LogOut } from 'lucide-react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Sidebar } from './Sidebar'
 import { useAuth } from '@/contexts/AuthContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+
+type UserRole = 'admin' | 'editor' | 'viewer'
 
 const routeTitles: Record<string, string> = {
   '/':               'Panel de Control',
@@ -16,6 +18,25 @@ const routeTitles: Record<string, string> = {
   '/cards':          'Tarjetas',
   '/settings/mapper':'Configuración',
   '/admin':          'Administración',
+  '/superadmin':     'Super Admin',
+}
+
+// Minimum role required to access each route prefix
+const ROUTE_PERMISSIONS: Array<{ prefix: string; minRole: UserRole }> = [
+  { prefix: '/import',   minRole: 'editor' },
+  { prefix: '/areas',    minRole: 'admin'  },
+  { prefix: '/settings', minRole: 'admin'  },
+  { prefix: '/admin',    minRole: 'admin'  },
+]
+
+const ROLE_HIERARCHY: Record<UserRole, number> = {
+  viewer: 1,
+  editor: 2,
+  admin: 3,
+}
+
+function hasAccess(userRole: UserRole, minRole: UserRole): boolean {
+  return ROLE_HIERARCHY[userRole] >= ROLE_HIERARCHY[minRole]
 }
 
 interface MainLayoutProps {
@@ -24,9 +45,30 @@ interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { user, logout } = useAuth()
+  const [showLogo, setShowLogo] = useState(false)
+  const { user, logout, isLoading } = useAuth()
   const pathname = usePathname()
+  const router = useRouter()
   const pageTitle = routeTitles[pathname] ?? 'Panel de Control'
+
+  useEffect(() => {
+    fetch('/api/superadmin/settings')
+      .then(r => r.json())
+      .then(data => { if (data.show_org_logo === 'true') setShowLogo(true) })
+      .catch(() => {})
+  }, [])
+
+  // Role-based route protection
+  useEffect(() => {
+    if (isLoading || !user) return
+    const userRole = (user.role as UserRole) ?? 'viewer'
+    for (const { prefix, minRole } of ROUTE_PERMISSIONS) {
+      if (pathname.startsWith(prefix) && !hasAccess(userRole, minRole)) {
+        router.replace('/')
+        break
+      }
+    }
+  }, [pathname, user, isLoading, router])
 
   return (
     <ProtectedRoute>
@@ -34,7 +76,8 @@ export function MainLayout({ children }: MainLayoutProps) {
         <Sidebar
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen(!sidebarOpen)}
-          currentUser={{ name: user?.name ?? null, email: user?.email ?? null }}
+          currentUser={{ name: user?.name ?? null, email: user?.email ?? null, role: user?.role ?? null }}
+          showLogo={showLogo}
         />
 
         {/* Main Content Area */}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/database'
+import { requireRole } from '@/lib/serverAuth'
 
 export async function GET() {
   try {
@@ -26,6 +27,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const { error } = await requireRole(request, 'editor')
+  if (error) return error
+
   try {
     const body = await request.json()
     const { cardNumber, identification, areaId, subAreaId, cardType, allowedFuel, userId } = body
@@ -65,6 +69,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const { error } = await requireRole(request, 'editor')
+  if (error) return error
+
   try {
     const body = await request.json()
     const { id, cardNumber, identification, areaId, subAreaId, cardType, allowedFuel } = body
@@ -99,6 +106,9 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const { error } = await requireRole(request, 'editor')
+  if (error) return error
+
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')

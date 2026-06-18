@@ -8,7 +8,7 @@ Permite importar crudos de YPF (Excel), gestionar tarjetas por área/secretaría
 ## Stack
 
 - **Next.js 14** (App Router) + **TypeScript** strict mode
-- **Prisma ORM** + **PostgreSQL** (única BD, dev y prod)
+- **Prisma ORM** + **SQLite** (dev: `prisma/dev.db`) / **PostgreSQL** (prod — cambiar provider en schema.prisma)
 - **Tailwind CSS**
 - **ExcelJS** para generación de reportes Excel
 - Repo: GitHub privado
@@ -63,16 +63,23 @@ fuel-expense-control/
 │   │   └── api/
 │   │       ├── import-excel/          # Importación de crudos YPF
 │   │       ├── generate-report/       # Reporte detallado por área
-│   │       ├── generate-summary/      # Resumen Ejecutivo (~1500 líneas)
+│   │       ├── generate-summary/      # Resumen Ejecutivo (~826 líneas)
 │   │       ├── cards/                 # CRUD tarjetas + export Excel
+      ├── cards/[id]/            # Editar tarjeta individual
+      ├── cards/[id]/history/    # Historial de reasignaciones
+      ├── cards/[id]/reassign/   # Reasignar tarjeta de área
 │   │       ├── dashboard/             # Datos del dashboard
 │   │       ├── facturas/              # Facturas y totales oficiales
+      ├── facturas/total/        # Guardar total oficial por factura
 │   │       ├── fuel-logs/             # Consulta de FuelLogs
 │   │       ├── areas/                 # Gestión de áreas
 │   │       ├── alerts/fuel-type/      # Alertas de cambio de combustible + export
 │   │       ├── pending-cards/         # Tarjetas pendientes de asignación
+      ├── pending-cards/assign/  # Asignar tarjeta pendiente a Card existente
 │   │       ├── import-settings/       # Configuración de mapeo de columnas
-│   │       ├── auth/me/               # Endpoint de sesión actual (hardcodeado)
+│   │       ├── auth/me/               # Endpoint de sesión actual (valida cookie session_token)
+│   │       ├── auth/login/            # POST — login real contra BD, setea cookie httpOnly
+│   │       ├── auth/logout/           # POST — invalida token en BD, borra cookie
 │   │       ├── admin/
 │   │       │   ├── users/             # CRUD de usuarios
 │   │       │   ├── users/[id]/        # Editar/eliminar usuario
@@ -102,7 +109,8 @@ fuel-expense-control/
 │   │   └── ToastContext.tsx           # Proveedor global de toasts
 │   ├── lib/
 │   │   ├── database.ts                # Singleton del cliente Prisma
-│   │   └── auth.ts                    # AuthService: login/logout client-side + localStorage
+│   │   ├── auth.ts                    # AuthService: login/logout client-side + localStorage
+│   │   └── serverAuth.ts              # getSession / requireAuth / requireRole (server-side)
 │   └── types/index.ts                 # Tipos centralizados
 ```
 
@@ -140,7 +148,8 @@ fuel-expense-control/
 - `email` (String, unique)
 - `role` (String) — `"admin"`, `"editor"`, o `"viewer"`
 - `isActive` (Boolean) — permite desactivar sin eliminar
-- `password` (String?) — pendiente implementar hashing real
+- `password` (String?) — hasheada con bcryptjs (rounds: 10)
+- `sessionToken` (String?, unique) — token de sesión; se genera al login, se borra al logout
 
 ### AuditLog — registro de acciones
 - `userId` / `userEmail` — quién realizó la acción
@@ -150,7 +159,13 @@ fuel-expense-control/
 
 ### SystemSettings — parámetros de configuración del sistema
 - Pares `key`/`value` (String, unique por key)
-- Claves usadas: `org_name`, `org_province`, `card_inactivity_days`, `excel_sheet_index`, `billing_period`, `factura_tolerance_green`, `factura_tolerance_yellow`
+- Claves usadas: `org_name`, `org_province`, `card_inactivity_days`, `excel_sheet_index`, `billing_period`, `factura_tolerance_green`, `factura_tolerance_yellow`, `show_org_logo`
+
+### Logo de la organización en el sidebar
+- Archivo estático: `public/logo-municipalidad.png` (colocar manualmente)
+- Toggle en `/superadmin` → tab Sistema → "Mostrar logo en el sidebar" (`show_org_logo: 'true'/'false'`)
+- Cuando está activo, reemplaza el ícono de combustible por el logo. Cuando está inactivo, muestra el ícono por defecto.
+- `MainLayout` lee el setting al montar y lo pasa al `Sidebar` via prop `showLogo`
 
 ### MainArea — secretaría/área principal
 ### SubArea — sub-área dependiente de MainArea
@@ -171,24 +186,45 @@ fuel-expense-control/
 
 ## Auth y Seguridad
 
-### Sistema actual
-- Login con email + password en `/login`
-- `AuthService` en `src/lib/auth.ts` — validación client-side, sesión en `localStorage`
+### Sistema actual (implementado)
+- Login con email + password en `/login` → llama `POST /api/auth/login`
+- `AuthService` en `src/lib/auth.ts` — llama a la API real, guarda datos del usuario en `localStorage`
 - `AuthContext` proveedor global; `ProtectedRoute` redirige a `/login` si no autenticado
-- `/api/auth/me` devuelve usuario hardcodeado (no valida token real)
-- **Sin validación backend real**: cualquiera que conozca la URL puede acceder a las APIs directamente
+- **Sesión via cookie httpOnly** `session_token` — el servidor la valida en cada request protegido
+- `src/lib/serverAuth.ts` — `getSession()`, `requireAuth()`, `requireRole(minRole)` para rutas API
+
+### Permisos por rol
+
+| Ruta / Acción | viewer | editor | admin |
+|---|---|---|---|
+| Dashboard, Reportes, Alertas, Tarjetas (ver) | ✅ | ✅ | ✅ |
+| Importar Excel, editar tarjetas, asignar pending | ❌ | ✅ | ✅ |
+| Áreas, Configuración, Admin, Usuarios | ❌ | ❌ | ✅ |
+| Superadmin | — | — | clave secreta aparte |
+
+El sidebar filtra ítems según el rol del usuario. `MainLayout` redirige a `/` si el usuario intenta acceder a una ruta que supera su rol.
+
+### Rutas API protegidas
+- `requireRole('admin')`: `/api/admin/*`, `/api/areas` (write), `/api/import-settings` (POST)
+- `requireRole('editor')`: `/api/import-excel`, `/api/cards` (write), `/api/cards/[id]/reassign`, `/api/pending-cards/assign`, `/api/facturas/total` (POST)
+- Rutas GET sin protección backend (la protección es client-side via ProtectedRoute)
 
 ### Superadmin (`/superadmin`)
-- Protegido por clave secreta fija (no relacionada con User)
-- Permite: CRUD de usuarios, configuración de parámetros del sistema (`SystemSettings`)
+- Protegido por clave secreta fija `SUPERADMIN_KEY` en `.env.local` (independiente del sistema de usuarios)
+- Permite: CRUD de usuarios (con contraseña), configuración de parámetros del sistema (`SystemSettings`)
 - API: `/api/superadmin/auth` + `/api/superadmin/settings`
 
 ### Admin (`/admin`)
-- Accesible con login normal rol `admin`
+- Solo accesible con rol `admin`
 - Muestra el log de auditoría paginado (50 por página)
 - API: `/api/admin/audit`, `/api/admin/users`, `/api/admin/users/[id]`
 
-> Seguridad real (contraseñas hasheadas, JWT, timeout de sesión) está **intencionalmente diferida** hasta que toda la funcionalidad esté completa.
+### Usuario inicial (seed)
+- Email: `admin@municipalidad.gob.ar` / Contraseña: `admin123`
+- Rol: `admin`
+- Creado automáticamente al correr `npm run seed`
+
+> **Pendiente de seguridad:** timeout de sesión automático y límite de intentos de login.
 
 ---
 
@@ -228,6 +264,18 @@ fuel-expense-control/
 - Sheet 1: Tarjetas Activas (cargas en últimos `card_inactivity_days` días — configurable en SystemSettings)
 - Sheet 2: Tarjetas Inactivas
 
+### 5. Validación de Factura (obligatorio)
+1. Al terminar la importación, si el Excel contiene facturas, aparece un modal **bloqueado** (no se puede cerrar)
+2. El modal muestra por cada factura: total calculado por la app vs campo para ingresar el total oficial de YPF
+3. Cada factura se guarda individualmente con botón "Guardar" → muestra semáforo de diferencia:
+   - 🟢 Diferencia ≤ `factura_tolerance_green` (default $1)
+   - 🟡 Diferencia ≤ `factura_tolerance_yellow` (default $100)
+   - 🔴 Diferencia supera tolerancia amarilla
+4. El botón "Cerrar" solo se habilita cuando **todas** las facturas del import están validadas
+5. **Si el usuario cierra el navegador** antes de validar: al volver a `/import` el modal reaparece automáticamente con las facturas pendientes; el dashboard muestra un banner rojo con link a `/import`
+6. API: `GET /api/facturas` devuelve todas las facturas con `hasTotal: boolean`; `GET/POST /api/facturas/total` lee/guarda el total oficial
+7. Tolerancias configurables en `/superadmin` → tab Sistema (`factura_tolerance_green`, `factura_tolerance_yellow`)
+
 ---
 
 ## Reportes Excel (ExcelJS)
@@ -238,7 +286,7 @@ fuel-expense-control/
 - Formato A4 landscape, Calibri 11, bordes medium
 - Fila total: columnas A:F mergeadas con `"Total : "` + importe en columna G con `formatARS()`
 
-### Resumen Ejecutivo (`/api/generate-summary/route.ts`, ~1500 líneas)
+### Resumen Ejecutivo (`/api/generate-summary/route.ts`, ~826 líneas)
 
 **Layout:** 10 columnas A–J  
 Anchos: `A=22, B=7, C=11, D=11, E=10, F=11, G=16, H=9, I=11, J=9`  
@@ -367,8 +415,28 @@ fs.appendFileSync('debug.log', JSON.stringify(data) + '\n')
 | `row.height` en ExcelJS no aplica — todas las filas quedan en h=1 | Pendiente |
 | Distribución por Combustible solo muestra 2 de 4 tipos | Pendiente |
 | 238 tarjetas en seed en lugar de 235 (3 extras) | Pendiente |
-| 20 tarjetas con patente válida tienen `allowedFuel="ambos"` incorrectamente | Esperando informe municipal |
-| `/api/auth/me` devuelve usuario hardcodeado — sin validación backend real | Pendiente |
+| 20 tarjetas con patente válida tenían `allowedFuel="ambos"` incorrectamente | Corregidas en seed.ts (pendiente reset-dev) |
+| `/api/auth/me` devuelve usuario hardcodeado — sin validación backend real | ✅ Resuelto |
+
+---
+
+## Inactividad de Tarjetas
+
+### Cómo funciona hoy
+- El parámetro `card_inactivity_days` (configurable en `/superadmin` → tab Sistema, default: 30 días) define el umbral de inactividad.
+- Se usa **exclusivamente** en `GET /api/cards/export`: genera un Excel con dos sheets:
+  - **Sheet 1 "Tarjetas Activas"**: tarjetas con al menos una carga (`status: 'IMPORTED'`) dentro de los últimos `card_inactivity_days` días.
+  - **Sheet 2 "Tarjetas Inactivas"**: tarjetas sin cargas en ese período, con columna "Inactiva desde".
+- El botón "Exportar Tarjetas" en `/cards` dispara ese endpoint.
+
+### Lo que NO hace (pendiente de mejora)
+- La tabla de `/cards` no muestra badge ni filtro de activa/inactiva — solo se detecta al exportar.
+- El dashboard no usa este parámetro.
+- El sistema de alertas no notifica tarjetas inactivas.
+
+### Mejoras pendientes acordadas
+- Cambiar el default de `card_inactivity_days` de 30 a **15 días** (más acorde a la operativa real).
+- Agregar badge o indicador visual de "Inactiva" directamente en la tabla de `/cards`, sin necesidad de exportar.
 
 ---
 
@@ -377,22 +445,19 @@ fs.appendFileSync('debug.log', JSON.stringify(data) + '\n')
 1. **Resumen Ejecutivo mensual** — popup selector de mes al hacer click en el botón (agrupar facturas del mes seleccionado)
 2. **Fix KPIs Resumen Ejecutivo** — alturas de fila (h=1) y distribución por combustible (solo 2 de 4 tipos)
 3. **Dashboard** — reemplazar cuadrado azul "gasto del mes" por total de la última factura importada
-4. **UX validación de factura** — mejorar flujo de ingreso del monto oficial YPF
-5. **Seguridad** — contraseñas hasheadas, validación backend de sesión, timeout, límite de intentos
+4. **Inactividad de tarjetas** — cambiar default a 15 días + badge visual en tabla de `/cards`
+5. **Seguridad (pendiente)** — timeout de sesión automático, límite de intentos de login
 6. **Dominio propio**
 
 ---
 
 ## Tarjetas Pendientes de Corrección (allowedFuel)
+Las 20 tarjetas con `allowedFuel="ambos"` incorrectamente asignado fueron corregidas en seed.ts.
+**Pendiente:** ejecutar `npm run reset-dev` para aplicar los cambios.
 
-Patentes con `allowedFuel="ambos"` incorrectamente asignado — **pendiente informe municipal**:
-```
-OHE179, AB043WX, aa873nz, AE377RL, AF689RJ, AF729ND, AF729WZ, AF772NP,
-AF747XK, AF781BZ, AF430TL, DOQ869, AG857AX, AG857AY, AG857AZ, AH230ZY,
-AH132QR, AF734LF, AH369YQ, AB043WS
-```
-Sin formato estándar de patente, pendiente clasificar: `DFJ05`, `CQY69`
-
+Valores asignados:
+- **nafta:** OHE179, AB043WX, AE377RL, AF430TL, AG857AX, AG857AY, AG857AZ, AB043WS
+- **gasoil:** aa873nz, DFJ05, AF689RJ, AF729ND, AF729WZ, AF772NP, AF747XK, AF781BZ, DOQ869, AH230ZY, AH132QR, AF734LF, AH369YQ, CQY69
 ---
 
 ## Contexto Municipal
