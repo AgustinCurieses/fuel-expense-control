@@ -5,6 +5,7 @@ import { Save, Settings, ChevronDown, ChevronRight } from 'lucide-react'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { useToastContext } from '@/contexts/ToastContext'
 
 interface ImportMapping {
@@ -120,22 +121,21 @@ export default function ExcelMapperPage() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Configuración</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Parámetros generales del sistema de control de combustible</p>
-          </div>
-          <div className="flex space-x-3">
-            <Button variant="outline" onClick={handleReset}>
-              Reiniciar Valores
-            </Button>
-            <Button onClick={handleSaveSettings} disabled={isSaving}>
-              <Save className="w-4 h-4 mr-2" />
-              {isSaving ? 'Guardando...' : 'Guardar Configuración'}
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          title="Configuración"
+          subtitle="Parámetros generales del sistema de control de combustible"
+          actions={
+            <>
+              <Button variant="outline" onClick={handleReset}>
+                Reiniciar Valores
+              </Button>
+              <Button onClick={handleSaveSettings} disabled={isSaving}>
+                <Save className="w-4 h-4 mr-2" aria-hidden="true" />
+                {isSaving ? 'Guardando...' : 'Guardar Configuración'}
+              </Button>
+            </>
+          }
+        />
 
         {/* Importación Excel */}
         <div className="bg-white rounded-lg border border-slate-200">

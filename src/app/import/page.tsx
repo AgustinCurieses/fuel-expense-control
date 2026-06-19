@@ -9,10 +9,13 @@ import { DropZone } from '@/components/ui/DropZone'
 import { Spinner } from '@/components/ui/Spinner'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { useToastContext } from '@/contexts/ToastContext'
 
 type ImportStep = 'upload' | 'processing' | 'complete'
 
 export default function ImportPage() {
+  const { warning: toastWarning } = useToastContext()
   const [currentStep, setCurrentStep] = useState<ImportStep>('upload')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [error, setError] = useState<string>('')
@@ -74,7 +77,7 @@ export default function ImportPage() {
   const getSemaforo = (diferencia: number) => {
     const abs = Math.abs(diferencia)
     if (abs <= toleranceGreen) return { color: 'text-green-700 bg-green-50 border-green-200', label: 'OK' }
-    if (abs <= toleranceYellow) return { color: 'text-yellow-700 bg-yellow-50 border-yellow-200', label: 'Diferencia menor' }
+    if (abs <= toleranceYellow) return { color: 'text-amber-700 bg-amber-50 border-amber-200', label: 'Diferencia menor' }
     return { color: 'text-red-700 bg-red-50 border-red-200', label: 'Diferencia crítica' }
   }
 
@@ -169,11 +172,10 @@ export default function ImportPage() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Cargar Datos</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Cargue y procese archivos Excel de gastos de combustible (crudos YPF)</p>
-        </div>
+        <PageHeader
+          title="Cargar Datos"
+          subtitle="Cargue y procese archivos Excel de gastos de combustible (crudos YPF)"
+        />
 
         {/* Progress Steps */}
         <div className="bg-white rounded-lg border border-slate-200 p-4">
@@ -189,23 +191,23 @@ export default function ImportPage() {
               return (
                 <div key={step.id} className="flex items-center">
                   <div className={clsx(
-                    'flex items-center justify-center w-9 h-9 rounded-full border-2 transition-colors',
+                    'flex items-center justify-center w-9 h-9 rounded-full border-2 transition-colors shrink-0',
                     isActive ? 'bg-navy-600 border-navy-600 text-white' :
                     isDone  ? 'bg-navy-100 border-navy-300 text-navy-600' :
                               'border-slate-300 text-slate-400'
                   )}>
                     {step.id === 'processing' && currentStep === 'processing'
                       ? <Spinner size="sm" className="text-white" />
-                      : <step.icon className="w-4 h-4" />
+                      : <step.icon className="w-4 h-4" aria-hidden="true" />
                     }
                   </div>
                   <span className={clsx(
-                    'ml-2 text-sm font-medium',
+                    'ml-2 text-sm font-medium hidden sm:inline',
                     isActive || isDone ? 'text-navy-600' : 'text-slate-400'
                   )}>
                     {step.label}
                   </span>
-                  {index < 2 && <ArrowRight className="w-4 h-4 text-slate-300 mx-4" />}
+                  {index < 2 && <ArrowRight className="w-4 h-4 text-slate-300 mx-2 sm:mx-4 shrink-0" aria-hidden="true" />}
                 </div>
               )
             })}
@@ -224,7 +226,12 @@ export default function ImportPage() {
         {currentStep === 'upload' && (
           <div className="bg-white rounded-lg border border-slate-200 p-6">
             <h2 className="text-sm font-semibold text-slate-800 mb-4">Cargar Archivo Excel</h2>
-            <DropZone onFileSelect={handleFileSelect} isProcessing={isProcessing} error={error} />
+            <DropZone
+              onFileSelect={handleFileSelect}
+              isProcessing={isProcessing}
+              error={error}
+              onInvalidFile={() => toastWarning('Archivo no válido', 'Solo se admiten archivos .xlsx o .xls')}
+            />
           </div>
         )}
 
@@ -328,12 +335,12 @@ export default function ImportPage() {
               const result = facturaResults[f]
               const semaforo = result ? getSemaforo(result.diferencia) : null
               return (
-                <div key={f} className={`border rounded-lg p-4 transition-colors ${result ? 'border-green-200 bg-green-50/30' : 'border-gray-200'}`}>
+                <div key={f} className={`border rounded-lg p-4 transition-colors ${result ? 'border-green-200 bg-green-50/30' : 'border-slate-200'}`}>
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-semibold text-gray-900">Factura {f}</p>
+                    <p className="text-sm font-semibold text-slate-800">Factura {f}</p>
                     {result && semaforo && (
                       <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${semaforo.color}`}>
-                        <CheckCircle className="w-3.5 h-3.5" />
+                        <CheckCircle className="w-3.5 h-3.5" aria-hidden="true" />
                         {semaforo.label}
                       </span>
                     )}
@@ -341,20 +348,20 @@ export default function ImportPage() {
 
                   <div className="grid grid-cols-2 gap-4 items-end">
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Total calculado (App)</p>
-                      <p className="text-base font-bold text-blue-600">
+                      <p className="text-xs text-slate-500 mb-1">Total calculado (App)</p>
+                      <p className="text-base font-bold text-navy-600">
                         {facturaCalcTotals[f] != null ? formatARS(facturaCalcTotals[f]) : '—'}
                       </p>
                     </div>
                     <div>
                       {result ? (
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Total Oficial YPF</p>
-                          <p className="text-base font-bold text-gray-800">
+                          <p className="text-xs text-slate-500 mb-1">Total Oficial YPF</p>
+                          <p className="text-base font-bold text-slate-800">
                             {formatARS(parseFloat(facturaInputs[f].replace(/\./g, '').replace(',', '.')))}
                           </p>
                           {result.diferencia !== 0 && (
-                            <p className={`text-xs mt-1 ${Math.abs(result.diferencia) > toleranceYellow ? 'text-red-600' : Math.abs(result.diferencia) > toleranceGreen ? 'text-yellow-600' : 'text-green-600'}`}>
+                            <p className={`text-xs mt-1 ${Math.abs(result.diferencia) > toleranceYellow ? 'text-red-600' : Math.abs(result.diferencia) > toleranceGreen ? 'text-amber-600' : 'text-green-600'}`}>
                               Diferencia: {formatARS(result.diferencia)}
                             </p>
                           )}
@@ -387,7 +394,7 @@ export default function ImportPage() {
             })}
           </div>
 
-          <div className="flex justify-end pt-2 border-t border-gray-100">
+          <div className="flex justify-end pt-2 border-t border-slate-100">
             <Button
               onClick={() => setShowValidation(false)}
               disabled={!allValidated}

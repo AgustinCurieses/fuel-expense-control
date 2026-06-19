@@ -5,6 +5,7 @@ import { MainLayout } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui/Button'
 import { ClipboardList } from 'lucide-react'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 interface AuditEntry {
   id: string
@@ -80,11 +81,10 @@ export default function AdminPage() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Administración</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Registro de auditoría de la instancia</p>
-        </div>
+        <PageHeader
+          title="Administración"
+          subtitle="Registro de auditoría de la instancia"
+        />
 
         {/* Audit log */}
         <div className="bg-white rounded-lg border border-slate-200">

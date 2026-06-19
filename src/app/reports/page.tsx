@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { useToastContext } from '@/contexts/ToastContext'
 import { FuelLog, Card, MainArea, SubArea } from '@/types'
 
@@ -279,23 +280,22 @@ export default function ReportsPage() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Reportes</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Consulte y exporte datos por área o factura</p>
-          </div>
-          <div className="flex items-center gap-2 sm:flex-shrink-0">
-            <Button variant="outline" onClick={handleGenerateReport} disabled={isExporting || fuelLogs.length === 0}>
-              <Download className="w-4 h-4 mr-2" aria-hidden="true" />
-              {isExporting ? 'Generando...' : 'Reporte Detallado'}
-            </Button>
-            <Button onClick={() => { setSelectedSummaryMonth(''); setShowSummaryModal(true) }} disabled={isExporting}>
-              <Download className="w-4 h-4 mr-2" aria-hidden="true" />
-              {isExporting ? 'Generando...' : 'Resumen Ejecutivo'}
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          title="Reportes"
+          subtitle="Consulte y exporte datos por área o factura"
+          actions={
+            <>
+              <Button variant="outline" onClick={handleGenerateReport} disabled={isExporting || fuelLogs.length === 0}>
+                <Download className="w-4 h-4 mr-2" aria-hidden="true" />
+                {isExporting ? 'Generando...' : 'Reporte Detallado'}
+              </Button>
+              <Button onClick={() => { setSelectedSummaryMonth(''); setShowSummaryModal(true) }} disabled={isExporting}>
+                <Download className="w-4 h-4 mr-2" aria-hidden="true" />
+                {isExporting ? 'Generando...' : 'Resumen Ejecutivo'}
+              </Button>
+            </>
+          }
+        />
 
         {/* Filters */}
         <div className="bg-white rounded-lg border border-slate-200 p-5">

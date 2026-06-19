@@ -49,19 +49,20 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1">
               <label htmlFor="email" className="block text-sm font-medium text-slate-700">
-                Usuario
+                Email
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-4 w-4 text-slate-400" />
+                  <User className="h-4 w-4 text-slate-400" aria-hidden="true" />
                 </div>
                 <input
                   id="email"
-                  type="text"
+                  type="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full pl-9 pr-3 py-2 border border-slate-300 rounded-md text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-navy-600 focus:border-navy-600"
-                  placeholder="Nombre de usuario"
+                  placeholder="usuario@municipalidad.gob.ar"
                   required
                 />
               </div>
@@ -73,11 +74,12 @@ export default function LoginPage() {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-4 w-4 text-slate-400" />
+                  <Lock className="h-4 w-4 text-slate-400" aria-hidden="true" />
                 </div>
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="block w-full pl-9 pr-10 py-2 border border-slate-300 rounded-md text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-navy-600 focus:border-navy-600"
@@ -87,9 +89,10 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
                 </button>
               </div>
             </div>

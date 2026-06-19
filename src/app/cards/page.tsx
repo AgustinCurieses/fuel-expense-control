@@ -6,6 +6,7 @@ import { MainLayout } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
@@ -382,23 +383,22 @@ export default function CardsPage() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Tarjetas</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Administre las tarjetas de combustible y asígnelas a áreas</p>
-          </div>
-          <div className="flex space-x-3">
-            <Button onClick={handleExportCards} variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              Exportar Tarjetas
-            </Button>
-            <Button onClick={() => setIsModalOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Agregar Tarjeta
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          title="Tarjetas"
+          subtitle="Administre las tarjetas de combustible y asígnelas a áreas"
+          actions={
+            <>
+              <Button onClick={handleExportCards} variant="outline">
+                <Download className="w-4 h-4 mr-2" aria-hidden="true" />
+                Exportar Tarjetas
+              </Button>
+              <Button onClick={() => setIsModalOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
+                Agregar Tarjeta
+              </Button>
+            </>
+          }
+        />
 
 
         {/* Pending Cards Section */}

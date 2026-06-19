@@ -7,6 +7,7 @@ import { MainLayout } from '@/components/layout/MainLayout'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { Input } from '@/components/ui/Input'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 interface SuspiciousLoad {
   date: string
@@ -150,19 +151,18 @@ export default function AlertsPage() {
     <MainLayout>
       <div className="space-y-6">
 
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Alertas de Combustible</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Detección de cargas con combustible no autorizado</p>
-          </div>
-          {hasFilter && alerts.length > 0 && (
-            <Button onClick={() => handleExport()} disabled={isExportingAll} variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              {isExportingAll ? 'Exportando...' : 'Exportar Todo'}
-            </Button>
-          )}
-        </div>
+        <PageHeader
+          title="Alertas de Combustible"
+          subtitle="Detección de cargas con combustible no autorizado"
+          actions={
+            hasFilter && alerts.length > 0 ? (
+              <Button onClick={() => handleExport()} disabled={isExportingAll} variant="outline">
+                <Download className="w-4 h-4 mr-2" aria-hidden="true" />
+                {isExportingAll ? 'Exportando...' : 'Exportar Todo'}
+              </Button>
+            ) : undefined
+          }
+        />
 
         {/* Filter bar */}
         <div className="bg-white rounded-lg border border-slate-200 p-4">

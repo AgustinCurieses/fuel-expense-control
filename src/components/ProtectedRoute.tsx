@@ -21,10 +21,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-navy-600 flex items-center justify-center">
         <div className="text-center">
-          <Spinner size="lg" className="text-white mb-4" />
-          <p className="text-white">Loading...</p>
+          <Spinner size="lg" className="text-white mb-4 mx-auto" />
+          <p className="text-sm text-navy-100">Cargando...</p>
         </div>
       </div>
     )

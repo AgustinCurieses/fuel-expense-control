@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { useToastContext } from '@/contexts/ToastContext'
 import { MainArea, SubArea, AreaFormData } from '@/types'
 
@@ -142,17 +143,16 @@ export default function AreasPage() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Gestión de Áreas</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Administre secretarías y sus dependencias</p>
-          </div>
-          <Button onClick={() => { setEditingArea(null); setFormData({ name: '', type: 'main', parentAreaId: '' }); setIsModalOpen(true) }}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nueva
-          </Button>
-        </div>
+        <PageHeader
+          title="Gestión de Áreas"
+          subtitle="Administre secretarías y sus dependencias"
+          actions={
+            <Button onClick={() => { setEditingArea(null); setFormData({ name: '', type: 'main', parentAreaId: '' }); setIsModalOpen(true) }}>
+              <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
+              Nueva
+            </Button>
+          }
+        />
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4">

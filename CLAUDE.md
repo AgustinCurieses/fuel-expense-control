@@ -99,11 +99,11 @@ fuel-expense-control/
 │   │   │   ├── Toast.tsx
 │   │   │   ├── Badge.tsx              # Variantes: success/warning/danger/info/neutral/navy
 │   │   │   ├── Skeleton.tsx           # Placeholder animado para estados de carga
-│   │   │   ├── StatCard.tsx
-│   │   │   ├── PageHeader.tsx
-│   │   │   ├── Spinner.tsx
-│   │   │   ├── DropZone.tsx
-│   │   │   └── SearchableSelect.tsx
+│   │   │   ├── StatCard.tsx           # KPI card de una línea (icon + label + value)
+│   │   │   ├── PageHeader.tsx         # Header estándar de página (title/subtitle/actions, responsive)
+│   │   │   ├── Spinner.tsx            # Usa currentColor (color via className)
+│   │   │   ├── DropZone.tsx           # Drag & drop de Excel + callback onInvalidFile
+│   │   │   └── SearchableSelect.tsx   # Combobox accesible por teclado
 │   │   └── ProtectedRoute.tsx         # HOC que redirige a /login si no autenticado
 │   ├── contexts/
 │   │   ├── AuthContext.tsx            # Proveedor de sesión (client-side)
@@ -339,21 +339,33 @@ Paleta: navy `#1F3864`, azul claro `#BDD7EE`, azul KPI `#E8F0FE`
 ### Toasts — siempre `useToastContext`
 ```typescript
 const { success, error, warning, info } = useToastContext()
-// NUNCA usar alert(), confirm() nativos ni el hook local useToast()
+// NUNCA usar alert() nativo ni el hook local useToast()
 ```
+- Los toasts se renderizan en un **único contenedor apilado** dentro de `ToastProvider` (`fixed top-4 right-4 flex-col gap-2`). El `ToastComponent` NO es `fixed` — no agregar posicionamiento propio o se encimarán.
+- Cada toast tiene `role="status"` + `aria-live` (`assertive` en errores, `polite` el resto).
 
 ### Componentes — usar los existentes, no reinventar
+- **Header de página:** usar `<PageHeader title subtitle actions={...} />` — NO reimplementar el `<div><h1>...</div>` inline. Ya es responsive (`flex-col sm:flex-row`). Todas las páginas lo usan, excepto `/login` y `/superadmin` que tienen headers especiales (pantalla de acceso / panel oscuro).
 - **Badges de estado:** usar `<Badge variant="success|warning|danger|info|neutral">`, no `<span>` inline con clases manuales
+- **KPI cards simples:** usar `<StatCard icon label value iconBg />` para tarjetas de estadística de una línea
 - **Loading states:** usar `<Skeleton className="h-4 w-24" />` con `animate-pulse`, no texto "Cargando..."
 - **Modales:** usar `<Modal>` — ya tiene focus trap, cierre con Escape y ARIA roles. No necesita configuración extra.
+- **Spinner:** usa `currentColor` (`border-t-current`) — controlar el color con `className="text-white"` etc.
+- **Selects:**
+  - `<Select>` (HTML nativo) — NO inyecta opción vacía; si necesitás un placeholder, pasalo como primera opción (`{ value: '', label: 'Todas...' }`)
+  - `<SearchableSelect>` — combobox accesible por teclado (↑/↓/Enter/Escape), para listas largas (áreas, subáreas)
 - **Confirmación de acciones destructivas:** usar `confirm()` del browser hasta que haya un componente de diálogo dedicado
 
 ### Accesibilidad
+- `<html lang="es">` en `layout.tsx` — la app es 100% en español
 - Botones de solo-ícono: siempre `aria-label` + `title` (tooltip nativo)
 - Íconos decorativos: `aria-hidden="true"`
 - Headers de tabla: `scope="col"`
 - Columnas ordenables: `aria-sort="ascending|descending|none"`
 - No usar `<h2>` en el layout si la página tiene su propio `<h1>` — el `<p>` en MainLayout es intencional
+
+### Tema claro únicamente — NO dark mode
+- La app está diseñada **solo para tema claro**. NO reintroducir el media-query `@media (prefers-color-scheme: dark)` en `globals.css` — flipea el `<body>` a fondo oscuro mientras las cards siguen blancas, rompiendo el contraste en celulares con modo oscuro del SO.
 
 ### Dashboard
 - 4 KPI cards en grid `sm:grid-cols-2 xl:grid-cols-4`:
@@ -364,7 +376,6 @@ const { success, error, warning, info } = useToastContext()
 - Skeleton loading para KPI cards, tabla de consumo y lista de facturas
 
 ### Reportes (`/reports`)
-- Header con `flex-col sm:flex-row` para que los botones bajen a su propia línea en mobile
 - Summary cards solo visibles cuando hay resultados (`fuelLogs.length > 0`)
 - `loadData` solo carga áreas y facturas (no import-settings — el modal de settings fue eliminado)
 
@@ -476,6 +487,12 @@ fs.appendFileSync('debug.log', JSON.stringify(data) + '\n')
 | `alert()`/`confirm()` nativos en cards, reports, settings | ✅ Resuelto |
 | Modal sin focus trap, Escape ni ARIA roles | ✅ Resuelto |
 | Dashboard con 3 KPIs mezclando alertas + sistema en uno | ✅ Resuelto (4 KPIs separados) |
+| Paleta vieja en componentes base Spinner/DropZone + modal de validación de factura | ✅ Resuelto |
+| Toasts apilados en la misma posición (se encimaban) | ✅ Resuelto (contenedor stack en ToastProvider) |
+| `<Select>` con opción vacía duplicada | ✅ Resuelto |
+| `SearchableSelect` no usable por teclado | ✅ Resuelto |
+| `<html lang="en">` + dark-mode media query rompía contraste en mobile | ✅ Resuelto (lang=es, sin dark mode) |
+| Headers de página reimplementados inline en cada archivo | ✅ Resuelto (componente `PageHeader`) |
 
 ---
 

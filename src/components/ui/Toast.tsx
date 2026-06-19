@@ -36,13 +36,17 @@ export function ToastComponent({ toast, onClose }: ToastProps) {
   }
 
   return (
-    <div className={clsx(
-      'fixed top-4 right-4 z-50 max-w-sm w-full bg-white border border-slate-200 rounded-lg shadow-md overflow-hidden transition-all duration-300 transform',
-      isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
-    )}>
+    <div
+      role="status"
+      aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
+      className={clsx(
+        'pointer-events-auto max-w-sm w-full bg-white border border-slate-200 rounded-lg shadow-md overflow-hidden transition-all duration-300 transform',
+        isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+      )}
+    >
       <div className={`h-0.5 ${config[toast.type].bar}`} />
       <div className="flex items-start p-4 gap-3">
-        <div className="flex-shrink-0 mt-0.5">
+        <div className="flex-shrink-0 mt-0.5" aria-hidden="true">
           {config[toast.type].icon}
         </div>
         <div className="flex-1 min-w-0">
@@ -53,9 +57,10 @@ export function ToastComponent({ toast, onClose }: ToastProps) {
         </div>
         <button
           onClick={() => { setIsVisible(false); setTimeout(() => onClose(toast.id), 300) }}
+          aria-label="Cerrar notificación"
           className="flex-shrink-0 text-slate-400 hover:text-slate-600 transition-colors"
         >
-          <X className="w-4 h-4" />
+          <X className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
     </div>

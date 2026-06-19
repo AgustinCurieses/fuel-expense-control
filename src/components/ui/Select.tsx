@@ -26,7 +26,6 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           {...props}
         >
-          <option value="">Seleccionar...</option>
           {options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}

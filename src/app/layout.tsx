@@ -7,8 +7,8 @@ import { ToastProvider } from '@/contexts/ToastContext'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Fuel Control - Enterprise Fuel Expense Management',
-  description: 'Comprehensive fuel expense tracking and management system for enterprises',
+  title: 'Fuel Control — Municipalidad de Luján',
+  description: 'Control de gastos de combustible de la Municipalidad de Luján: importación de crudos YPF, gestión de tarjetas, auditoría y reportes.',
 }
 
 export default function RootLayout({
@@ -17,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="es">
       <body className={inter.className}>
         <AuthProvider>
           <ToastProvider>
