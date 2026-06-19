@@ -4,13 +4,13 @@ import { logAction } from '@/lib/audit'
 import { requireRole } from '@/lib/serverAuth'
 import bcrypt from 'bcryptjs'
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireRole(request, 'admin')
   if (error) return error
 
   try {
     const { name, role, isActive, password } = await request.json()
-    const { id } = params
+    const { id } = await params
 
     const current = await prisma.user.findUnique({ where: { id } })
     if (!current) {
@@ -43,12 +43,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireRole(_request, 'admin')
   if (error) return error
 
   try {
-    const { id } = params
+    const { id } = await params
 
     const user = await prisma.user.findUnique({ where: { id } })
     if (!user) {

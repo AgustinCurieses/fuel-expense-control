@@ -4,18 +4,40 @@ import { requireRole } from '@/lib/serverAuth'
 
 export async function GET() {
   try {
-    const cards = await prisma.card.findMany({
-      include: { area: true, subArea: true },
-      orderBy: { createdAt: 'desc' }
-    })
+    const [cards, inactivitySetting] = await Promise.all([
+      prisma.card.findMany({
+        include: {
+          area: true,
+          subArea: true,
+          fuelLogs: {
+            where: { status: 'IMPORTED' },
+            orderBy: { date: 'desc' },
+            take: 1,
+            select: { date: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.systemSettings.findUnique({ where: { key: 'card_inactivity_days' } })
+    ])
+
+    const inactivityDays = parseInt(inactivitySetting?.value ?? '15', 10)
+    const threshold = new Date()
+    threshold.setDate(threshold.getDate() - inactivityDays)
 
     return NextResponse.json(
-      cards.map(card => ({
-        ...card,
-        identification: card.identification || undefined,
-        createdAt: new Date(card.createdAt),
-        updatedAt: new Date(card.updatedAt)
-      }))
+      cards.map(card => {
+        const lastActivityDate = card.fuelLogs[0]?.date ?? null
+        return {
+          ...card,
+          fuelLogs: undefined,
+          identification: card.identification || undefined,
+          lastActivityDate,
+          isInactive: !lastActivityDate || new Date(lastActivityDate) < threshold,
+          createdAt: new Date(card.createdAt),
+          updatedAt: new Date(card.updatedAt)
+        }
+      })
     )
   } catch (error) {
     console.error('Error fetching cards:', error)

@@ -47,7 +47,7 @@ const ROLE_LABELS: Record<string, string> = {
 const DEFAULT_SETTINGS: SystemSettings = {
   org_name:                 'Municipalidad de Luján',
   org_province:             'Buenos Aires',
-  card_inactivity_days:     '30',
+  card_inactivity_days:     '15',
   excel_sheet_index:        '0',
   billing_period:           'quincenal',
   factura_tolerance_green:  '1',

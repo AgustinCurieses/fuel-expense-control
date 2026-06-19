@@ -42,6 +42,8 @@ export interface Card {
   subArea?: SubArea | null
   user?: User
   fuelLogs?: FuelLog[]
+  lastActivityDate?: Date | null
+  isInactive?: boolean
   createdAt: Date
   updatedAt: Date
 }

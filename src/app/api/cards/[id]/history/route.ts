@@ -3,10 +3,10 @@ import { prisma } from '@/lib/database'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const cardId = params.id
+    const { id: cardId } = await params
 
     const history = await prisma.cardAreaHistory.findMany({
       where: { cardId: cardId },

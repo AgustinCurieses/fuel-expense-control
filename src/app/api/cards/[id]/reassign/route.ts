@@ -4,13 +4,13 @@ import { requireRole } from '@/lib/serverAuth'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { error } = await requireRole(request, 'editor')
   if (error) return error
 
   try {
-    const cardId = params.id
+    const { id: cardId } = await params
     const { mainAreaId, subAreaId } = await request.json()
 
     // Validate required fields

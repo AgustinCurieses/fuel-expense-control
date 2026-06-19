@@ -582,6 +582,9 @@ export default function CardsPage() {
                       <div className="flex items-center gap-2">
                         <CreditCard className="w-4 h-4 text-slate-400 shrink-0" />
                         <span className="text-sm font-medium text-slate-800 font-mono">{card.cardNumber}</span>
+                        {card.isInactive && (
+                          <Badge variant="neutral">Inactiva</Badge>
+                        )}
                       </div>
                     </td>
                     <td className="px-5 py-3.5 whitespace-nowrap text-sm text-slate-800">
