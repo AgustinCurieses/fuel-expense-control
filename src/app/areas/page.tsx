@@ -25,6 +25,7 @@ export default function AreasPage() {
   const [isLoading, setIsLoading] = useState(true)
   const { success, error } = useToastContext()
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData() }, [])
 
 

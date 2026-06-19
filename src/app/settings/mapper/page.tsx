@@ -43,6 +43,7 @@ export default function ExcelMapperPage() {
   const [mappingExpanded, setMappingExpanded] = useState(false)
   const { success: toastSuccess, error: toastError } = useToastContext()
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData() }, [])
 
   const loadData = async () => {

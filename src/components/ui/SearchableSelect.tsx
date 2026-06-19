@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useId } from 'react'
 import { ChevronDown, X } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -25,6 +25,7 @@ export function SearchableSelect({
   const dropdownRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  const listboxId = useId()
 
   const selectedOption = options.find(option => option.value === value)
   const displayValue = selectedOption?.label || ''
@@ -105,6 +106,7 @@ export function SearchableSelect({
           role="combobox"
           aria-expanded={isOpen}
           aria-haspopup="listbox"
+          aria-controls={listboxId}
           aria-label={label || placeholder}
           onClick={() => setIsOpen(!isOpen)}
           onKeyDown={handleTriggerKeyDown}
@@ -151,7 +153,7 @@ export function SearchableSelect({
               />
             </div>
 
-            <ul className="max-h-56 overflow-y-auto" role="listbox">
+            <ul id={listboxId} className="max-h-56 overflow-y-auto" role="listbox">
               {filteredOptions.length === 0 ? (
                 <li className="px-3 py-2.5 text-sm text-slate-400">
                   Sin resultados

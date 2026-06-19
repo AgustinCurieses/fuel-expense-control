@@ -522,33 +522,33 @@ export default function CardsPage() {
             <table className="min-w-full">
               <thead>
                 <tr className="bg-navy-600">
-                  <th scope="col" className="px-5 py-3 text-left">
-                    <button onClick={() => handleSort('cardNumber')} aria-sort={sortColumn === 'cardNumber' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
+                  <th scope="col" aria-sort={sortColumn === 'cardNumber' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('cardNumber')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Nro. Tarjeta <SortIcon col="cardNumber" />
                     </button>
                   </th>
-                  <th scope="col" className="px-5 py-3 text-left">
-                    <button onClick={() => handleSort('identification')} aria-sort={sortColumn === 'identification' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
+                  <th scope="col" aria-sort={sortColumn === 'identification' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('identification')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Identificación <SortIcon col="identification" />
                     </button>
                   </th>
-                  <th scope="col" className="px-5 py-3 text-left">
-                    <button onClick={() => handleSort('area')} aria-sort={sortColumn === 'area' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
+                  <th scope="col" aria-sort={sortColumn === 'area' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('area')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Secretaría <SortIcon col="area" />
                     </button>
                   </th>
-                  <th scope="col" className="px-5 py-3 text-left">
-                    <button onClick={() => handleSort('subArea')} aria-sort={sortColumn === 'subArea' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
+                  <th scope="col" aria-sort={sortColumn === 'subArea' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('subArea')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Dependencia <SortIcon col="subArea" />
                     </button>
                   </th>
-                  <th scope="col" className="px-5 py-3 text-left">
-                    <button onClick={() => handleSort('cardType')} aria-sort={sortColumn === 'cardType' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
+                  <th scope="col" aria-sort={sortColumn === 'cardType' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('cardType')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Tipo <SortIcon col="cardType" />
                     </button>
                   </th>
-                  <th scope="col" className="px-5 py-3 text-left">
-                    <button onClick={() => handleSort('allowedFuel')} aria-sort={sortColumn === 'allowedFuel' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
+                  <th scope="col" aria-sort={sortColumn === 'allowedFuel' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-5 py-3 text-left">
+                    <button onClick={() => handleSort('allowedFuel')} className="flex items-center gap-1 text-xs font-medium text-white/80 uppercase tracking-wider hover:text-white">
                       Combustible <SortIcon col="allowedFuel" />
                     </button>
                   </th>
