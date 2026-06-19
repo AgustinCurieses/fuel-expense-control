@@ -422,44 +422,62 @@ export default function CardsPage() {
                 <p className="text-xs text-slate-500 mt-1">Todas las tarjetas han sido asignadas correctamente</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="bg-navy-600">
-                    <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Nro. Tarjeta</th>
-                    <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Identificación</th>
-                    <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Cargas pendientes</th>
-                    <th className="px-5 py-3 text-right text-xs font-medium text-white/80 uppercase tracking-wider">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {pendingCards.map((pendingCard) => (
-                    <tr key={pendingCard.cardNumber} className="hover:bg-slate-50">
-                      <td className="px-5 py-3 whitespace-nowrap">
+              <>
+                {/* Mobile list */}
+                <div className="md:hidden divide-y divide-slate-100">
+                  {pendingCards.map(pc => (
+                    <div key={pc.cardNumber} className="flex items-center justify-between px-4 py-3 gap-3">
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <CreditCard className="w-4 h-4 text-slate-400 shrink-0" />
-                          <span className="text-sm font-medium text-slate-800 font-mono">{pendingCard.cardNumber}</span>
+                          <span className="text-sm font-medium text-slate-800 font-mono truncate">{pc.cardNumber}</span>
+                          <Badge variant="warning">{pc.count}</Badge>
                         </div>
-                      </td>
-                      <td className="px-5 py-3 whitespace-nowrap text-sm text-slate-700">
-                        {pendingCard.identification || <span className="text-slate-400">—</span>}
-                      </td>
-                      <td className="px-5 py-3 whitespace-nowrap">
-                        <Badge variant="warning">{pendingCard.count}</Badge>
-                      </td>
-                      <td className="px-5 py-3 whitespace-nowrap text-right">
-                        <button
-                          onClick={() => handleAssignCard(pendingCard)}
-                          className="text-sm font-medium text-navy-600 hover:text-navy-800"
-                        >
-                          Asignar
-                        </button>
-                      </td>
-                    </tr>
+                        {pc.identification && <p className="text-xs text-slate-500 mt-0.5 ml-6">{pc.identification}</p>}
+                      </div>
+                      <button onClick={() => handleAssignCard(pc)} className="text-sm font-medium text-navy-600 hover:text-navy-800 shrink-0">
+                        Asignar
+                      </button>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-              </div>
+                </div>
+                {/* Desktop table */}
+                <div className="hidden md:block overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="bg-navy-600">
+                      <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Nro. Tarjeta</th>
+                      <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Identificación</th>
+                      <th className="px-5 py-3 text-left text-xs font-medium text-white/80 uppercase tracking-wider">Cargas pendientes</th>
+                      <th className="px-5 py-3 text-right text-xs font-medium text-white/80 uppercase tracking-wider">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {pendingCards.map((pendingCard) => (
+                      <tr key={pendingCard.cardNumber} className="hover:bg-slate-50">
+                        <td className="px-5 py-3 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="w-4 h-4 text-slate-400 shrink-0" />
+                            <span className="text-sm font-medium text-slate-800 font-mono">{pendingCard.cardNumber}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3 whitespace-nowrap text-sm text-slate-700">
+                          {pendingCard.identification || <span className="text-slate-400">—</span>}
+                        </td>
+                        <td className="px-5 py-3 whitespace-nowrap">
+                          <Badge variant="warning">{pendingCard.count}</Badge>
+                        </td>
+                        <td className="px-5 py-3 whitespace-nowrap text-right">
+                          <button onClick={() => handleAssignCard(pendingCard)} className="text-sm font-medium text-navy-600 hover:text-navy-800">
+                            Asignar
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -518,7 +536,55 @@ export default function CardsPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Mobile card list */}
+          <div className="md:hidden divide-y divide-slate-100">
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="px-4 py-3 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              ))
+            ) : paginatedCards.length === 0 ? (
+              <p className="px-4 py-10 text-center text-sm text-slate-500">No se encontraron tarjetas.</p>
+            ) : paginatedCards.map(card => (
+              <div key={card.id} className="flex items-start justify-between px-4 py-3 gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-sm font-medium text-slate-800 font-mono">{card.cardNumber}</span>
+                    {card.isInactive && <Badge variant="neutral">Inactiva</Badge>}
+                  </div>
+                  {card.identification && (
+                    <p className="text-xs text-slate-500 mt-0.5">{card.identification}</p>
+                  )}
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    <Badge variant="info">{getAreaName(card.areaId)}</Badge>
+                    {card.subAreaId && <Badge variant="neutral">{getSubAreaName(card.subAreaId)}</Badge>}
+                    <span className="text-xs text-slate-400 capitalize self-center">
+                      {card.cardType}{card.allowedFuel ? ` · ${card.allowedFuel}` : ''}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <button onClick={() => handleEdit(card)} aria-label="Editar" title="Editar" className="p-1.5 text-navy-600 hover:bg-navy-50 rounded-md transition-colors">
+                    <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                  </button>
+                  <button onClick={() => handleReassignCard(card)} aria-label="Reasignar" title="Reasignar" className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md transition-colors">
+                    <ArrowRightLeft className="w-3.5 h-3.5" aria-hidden="true" />
+                  </button>
+                  <button onClick={() => handleViewHistory(card)} aria-label="Historial" title="Historial" className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md transition-colors">
+                    <History className="w-3.5 h-3.5" aria-hidden="true" />
+                  </button>
+                  <button onClick={() => handleDelete(card)} aria-label="Eliminar" title="Eliminar" className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors">
+                    <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full">
               <thead>
                 <tr className="bg-navy-600">

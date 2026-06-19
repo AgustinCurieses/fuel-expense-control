@@ -323,7 +323,33 @@ export default function AlertsPage() {
 
                   {/* Table */}
                   {expandedAreas.has(group.mainArea) && (
-                    <div className="border-t border-slate-100 overflow-x-auto">
+                    <div className="border-t border-slate-100">
+                      {/* Mobile card list */}
+                      <div className="md:hidden divide-y divide-slate-100">
+                        {group.alerts.flatMap(alert =>
+                          alert.suspiciousLoads.map((load, li) => (
+                            <div key={`${alert.cardNumber}-${li}`} className="px-4 py-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <p className="text-sm font-medium text-slate-800">{alert.dominio}</p>
+                                  <p className="text-xs text-slate-500">{alert.subArea}</p>
+                                </div>
+                                <span className="text-xs font-medium text-red-700 shrink-0">{load.product}</span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                <span className={clsx('inline-flex px-2 py-0.5 text-xs font-medium rounded-full border', alert.primaryGroup === 'nafta' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-navy-50 text-navy-700 border-navy-200')}>
+                                  {alert.primaryGroup === 'nafta' ? 'Nafta' : 'Gasoil'}
+                                </span>
+                                <span className="text-xs text-slate-500">{load.date}</span>
+                                <span className="text-xs font-mono text-slate-600">{load.liters.toFixed(1)} L</span>
+                                <span className="text-xs font-mono text-slate-800">{formatARS(load.amount)}</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      {/* Desktop table */}
+                      <div className="hidden md:block overflow-x-auto">
                       <table className="min-w-full">
                         <thead>
                           <tr className="bg-navy-600">
@@ -360,6 +386,7 @@ export default function AlertsPage() {
                           )}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   )}
                 </div>

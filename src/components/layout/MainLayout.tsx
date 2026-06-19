@@ -83,7 +83,7 @@ export function MainLayout({ children }: MainLayoutProps) {
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
           {/* Top Header */}
-          <header className="bg-white border-b border-slate-200 px-6 py-3.5 sticky top-0 z-10">
+          <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3.5 sticky top-0 z-10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button
@@ -118,7 +118,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           </header>
 
           {/* Page Content */}
-          <main className="flex-1 p-6 pb-8">
+          <main className="flex-1 p-3 sm:p-6 pb-8">
             {children}
           </main>
         </div>

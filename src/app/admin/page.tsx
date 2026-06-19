@@ -96,7 +96,35 @@ export default function AdminPage() {
             <span className="text-xs text-slate-500">{auditTotal} registros</span>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Mobile list */}
+          <div className="md:hidden divide-y divide-slate-100">
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="px-4 py-3 space-y-1.5">
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-4 w-40" />
+                </div>
+              ))
+            ) : auditLogs.length === 0 ? (
+              <p className="px-4 py-10 text-center text-sm text-slate-500">Sin registros aún</p>
+            ) : auditLogs.map(log => (
+              <div key={log.id} className="px-4 py-3">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${ACTION_COLORS[log.action] ?? 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
+                    {ACTION_LABELS[log.action] ?? log.action}
+                  </span>
+                  <span className="text-xs text-slate-500 font-mono shrink-0">{formatDate(log.createdAt)}</span>
+                </div>
+                <p className="text-sm text-slate-700">{log.userEmail ?? '—'}</p>
+                {formatDetail(log.detail) !== '—' && (
+                  <p className="text-xs text-slate-400 mt-0.5 truncate">{formatDetail(log.detail)}</p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full">
               <thead>
                 <tr className="bg-navy-600">
