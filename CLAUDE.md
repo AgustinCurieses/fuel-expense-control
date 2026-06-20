@@ -7,12 +7,13 @@ Permite importar crudos de YPF (Excel), gestionar tarjetas por área/secretaría
 
 ## Stack
 
-- **Next.js 14** (App Router) + **TypeScript** strict mode
-- **Prisma ORM** + **SQLite** (dev: `prisma/dev.db`) / **PostgreSQL** (prod — cambiar provider en schema.prisma)
+- **Next.js 15** (App Router) + **TypeScript** strict mode
+- **Prisma ORM** + **PostgreSQL** en producción (Neon serverless) y desarrollo
 - **Tailwind CSS**
 - **ExcelJS** para generación de reportes Excel
-- Repo: GitHub privado
+- Repo: GitHub privado — [AgustinCurieses/fuel-expense-control](https://github.com/AgustinCurieses/fuel-expense-control)
 - Path alias: `@/*` → `./src/*`
+- Deploy: Vercel (un solo proyecto activo, vinculado a `main`)
 
 ---
 
@@ -21,19 +22,32 @@ Permite importar crudos de YPF (Excel), gestionar tarjetas por área/secretaría
 ```bash
 npm run dev                          # Dev server en localhost:3000
 npm run dev -- --hostname 0.0.0.0   # Acceso desde red local
-npm run build                        # Build de producción
+npm run build                        # Build de producción (también corre prisma generate + db push)
 npm run lint                         # ESLint
-npm run seed                         # Seed con 235 tarjetas reales
+npm run seed                         # Seed contra la BD del .env (dev por defecto)
 npm run reset-dev                    # Resetear BD y recargar seed
 npm run update-identification        # Actualizar identificación de tarjetas desde FuelLogs
 npx prisma studio                    # Ver BD en navegador
 npx prisma generate                  # Regenerar cliente Prisma
-npx prisma db push                   # Sincronizar schema con BD (dev)
+npx prisma db push                   # Sincronizar schema con BD
 npx tsc --noEmit --skipLibCheck src/app/api/generate-summary/route.ts  # Verificar TS sin compilar todo
 git add . && git commit -m "mensaje" && git push
+
+# Seed contra producción (Neon main):
+DATABASE_URL="postgresql://...main..." npm run seed
+
+# Push schema a BD específica:
+DATABASE_URL="postgresql://..." npx prisma db push --accept-data-loss
 ```
 
 No hay test suite configurado.
+
+### Base de datos — Neon (PostgreSQL)
+- **Dev** (`dev` branch): `.env` y `.env.local` apuntan al connection string de la branch `dev` de Neon
+- **Prod** (`main` branch): Vercel env var `DATABASE_URL` apunta a la branch `main` de Neon
+- El `postinstall` corre `prisma generate && prisma db push` automáticamente en cada deploy de Vercel
+- Para seedear producción: `DATABASE_URL="...main..." npm run seed`
+- **`prisma/dev.db` ya NO está en git** — fue removido. Ambos entornos usan PostgreSQL vía Neon.
 
 ---
 
@@ -225,7 +239,10 @@ El sidebar filtra ítems según el rol del usuario. `MainLayout` redirige a `/` 
 - Rol: `admin`
 - Creado automáticamente al correr `npm run seed`
 
-> **Pendiente de seguridad:** timeout de sesión automático y límite de intentos de login.
+### Seguridad implementada
+- **Session timeout**: `AuthContext` desloguea automáticamente tras 30 minutos de inactividad (mousedown, keydown, scroll, touch). Se resetea con cualquier interacción.
+- **Rate limiting en login**: máximo 5 intentos por IP en 15 minutos. Al superar el límite devuelve 429 con mensaje de espera. Se resetea con login exitoso. Implementado en memoria en `src/app/api/auth/login/route.ts` (se resetea al reiniciar el servidor).
+- **`SUPERADMIN_KEY`**: cambiar el valor por defecto `"superadmin"` en las env vars de Vercel antes de usar en producción real.
 
 ---
 
@@ -379,6 +396,18 @@ const { success, error, warning, info } = useToastContext()
 - Summary cards solo visibles cuando hay resultados (`fuelLogs.length > 0`)
 - `loadData` solo carga áreas y facturas (no import-settings — el modal de settings fue eliminado)
 
+### Mobile responsive
+- **Tablas con muchas columnas**: en mobile (`md:hidden`) se usa card-list view; en desktop la tabla normal. Aplicado en: cards (tabla principal + pending cards), admin (audit log), alerts (dentro de cada grupo de área).
+- **Reports**: tabla de datos con scroll horizontal + indicador "← Deslizá para ver más" en mobile.
+- **`PageHeader`**: ya responsive (`flex-col sm:flex-row`) — se aplica automáticamente en todas las páginas.
+- **Padding del layout**: `p-3 sm:p-6` en main, `px-3 sm:px-6` en header — reducido en mobile.
+- **No agregar** tablas de muchas columnas sin implementar la vista mobile alternativa.
+
+### Resumen Ejecutivo (`/api/generate-summary`)
+- **Distribución por combustible**: usa query separado `allFuelLogs` SIN filtro `cardId: { not: null }` para incluir logs de tarjetas pendientes de asignación. El query principal `currLogs` mantiene el filtro para cálculos por área/vehículo.
+- **Clasificación de combustibles**: maneja variantes "GAS OIL", "GASOIL", "D. DIESEL" además de los nombres estándar YPF.
+- **Row heights**: usar el workaround de `customHeight: true` en el modelo interno (ver sección ExcelJS).
+
 ---
 
 ## Convenciones Críticas
@@ -426,6 +455,19 @@ const previousFactura = currentIndex > 0 ? facturaList[currentIndex - 1] : null
 ### Set con TypeScript
 `[...new Set()]` no funciona con la config del proyecto → usar `Array.from(new Set())`
 
+### Next.js 15 — params async en route handlers dinámicos
+En Next.js 15 los params de rutas dinámicas son `Promise`. Siempre usar:
+```typescript
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  // ...
+}
+```
+**NO usar** `{ params }: { params: { id: string } }` (sintaxis de Next.js 14 — rompe el build).
+
 ---
 
 ## Reglas Críticas para Edición de Archivos
@@ -470,7 +512,15 @@ fs.appendFileSync('debug.log', JSON.stringify(data) + '\n')
 
 ### ExcelJS
 - Escribir siempre en la **primera celda** del rango mergeado
-- `row.height` y `row.commit()` no aplican alturas correctamente en este proyecto (bug conocido)
+- Para que `row.height` funcione en ExcelJS 4.x hay que forzar `customHeight: true` en el modelo interno:
+```typescript
+const r = ws.getRow(rowNum)
+r.height = h
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const model = (r as any)._model ?? (r as any).model
+if (model) { model.height = h; model.customHeight = true }
+```
+Sin esto, ExcelJS no escribe el atributo `customHeight="1"` en el XML y Excel ignora la altura.
 
 ---
 
@@ -478,58 +528,62 @@ fs.appendFileSync('debug.log', JSON.stringify(data) + '\n')
 
 | Problema | Estado |
 |----------|--------|
-| `row.height` en ExcelJS no aplica — todas las filas quedan en h=1 | Pendiente |
-| Distribución por Combustible solo muestra 2 de 4 tipos | Pendiente |
 | 238 tarjetas en seed en lugar de 235 (3 extras) | Pendiente |
-| 20 tarjetas con patente válida tenían `allowedFuel="ambos"` incorrectamente | Corregidas en seed.ts (pendiente reset-dev) |
+| `SUPERADMIN_KEY="superadmin"` trivialmente adivinable en producción | Pendiente — cambiar en Vercel env vars |
+| `card_inactivity_days` en BD de producción puede tener valor viejo (30) | Pendiente — actualizar desde `/superadmin` |
+| `row.height` en ExcelJS no aplica sin forzar `customHeight` en el modelo interno | ✅ Resuelto (workaround en `RH` y `RH2`) |
+| Distribución por Combustible solo muestra 2 de 4 tipos | ✅ Resuelto (query separado sin filtro `cardId`, clasificación más robusta) |
+| 20 tarjetas con patente válida tenían `allowedFuel="ambos"` incorrectamente | ✅ Corregidas en seed.ts y aplicadas en Neon |
+| `dev.db` commiteado en git exponiendo datos del seed en producción | ✅ Resuelto (removido de git tracking) |
+| App deployada en Vercel con SQLite + dev.db en lugar de PostgreSQL | ✅ Resuelto (migrado a Neon PostgreSQL) |
+| Vulnerabilidad de seguridad en Next.js 14.0.4 | ✅ Resuelto (upgrade a Next.js 15.5.x) |
+| Params async no tipados en route handlers dinámicos (breaking change Next.js 15) | ✅ Resuelto |
+| Sin timeout de sesión ni rate limiting en login | ✅ Resuelto (30 min inactividad + 5 intentos/15 min) |
+| Badge de inactividad de tarjetas solo visible al exportar | ✅ Resuelto (badge en tabla + API retorna `isInactive`) |
 | `/api/auth/me` devuelve usuario hardcodeado — sin validación backend real | ✅ Resuelto |
-| Paleta gray/blue mezclada con slate/navy en cards, admin, superadmin, settings, reports | ✅ Resuelto |
-| `alert()`/`confirm()` nativos en cards, reports, settings | ✅ Resuelto |
+| Paleta gray/blue mezclada con slate/navy | ✅ Resuelto |
+| `alert()`/`confirm()` nativos | ✅ Resuelto |
 | Modal sin focus trap, Escape ni ARIA roles | ✅ Resuelto |
-| Dashboard con 3 KPIs mezclando alertas + sistema en uno | ✅ Resuelto (4 KPIs separados) |
-| Paleta vieja en componentes base Spinner/DropZone + modal de validación de factura | ✅ Resuelto |
-| Toasts apilados en la misma posición (se encimaban) | ✅ Resuelto (contenedor stack en ToastProvider) |
+| Dashboard con 3 KPIs mezclando alertas + sistema | ✅ Resuelto (4 KPIs separados) |
+| Paleta vieja en Spinner/DropZone + modal de validación | ✅ Resuelto |
+| Toasts apilados en la misma posición | ✅ Resuelto |
 | `<Select>` con opción vacía duplicada | ✅ Resuelto |
 | `SearchableSelect` no usable por teclado | ✅ Resuelto |
-| `<html lang="en">` + dark-mode media query rompía contraste en mobile | ✅ Resuelto (lang=es, sin dark mode) |
-| Headers de página reimplementados inline en cada archivo | ✅ Resuelto (componente `PageHeader`) |
+| `<html lang="en">` + dark-mode media query | ✅ Resuelto |
+| Headers inline duplicados en cada página | ✅ Resuelto (`PageHeader`) |
+| Sin versión mobile para tablas con muchas columnas | ✅ Resuelto (card-list view en mobile) |
 
 ---
 
 ## Inactividad de Tarjetas
 
-### Cómo funciona hoy
-- El parámetro `card_inactivity_days` (configurable en `/superadmin` → tab Sistema, default: 30 días) define el umbral de inactividad.
-- Se usa **exclusivamente** en `GET /api/cards/export`: genera un Excel con dos sheets:
-  - **Sheet 1 "Tarjetas Activas"**: tarjetas con al menos una carga (`status: 'IMPORTED'`) dentro de los últimos `card_inactivity_days` días.
-  - **Sheet 2 "Tarjetas Inactivas"**: tarjetas sin cargas en ese período, con columna "Inactiva desde".
-- El botón "Exportar Tarjetas" en `/cards` dispara ese endpoint.
+### Cómo funciona
+- El parámetro `card_inactivity_days` (configurable en `/superadmin` → tab Sistema, **default: 15 días**) define el umbral de inactividad.
+- **`GET /api/cards`** incluye `lastActivityDate` e `isInactive` por cada tarjeta (calculado contra el umbral). La tabla de `/cards` muestra badge **"Inactiva"** en tarjetas sin cargas recientes.
+- **`GET /api/cards/export`** genera un Excel con Sheet 1 (Activas) y Sheet 2 (Inactivas).
 
-### Lo que NO hace (pendiente de mejora)
-- La tabla de `/cards` no muestra badge ni filtro de activa/inactiva — solo se detecta al exportar.
+### Lo que NO hace
 - El dashboard no usa este parámetro.
 - El sistema de alertas no notifica tarjetas inactivas.
 
-### Mejoras pendientes acordadas
-- Cambiar el default de `card_inactivity_days` de 30 a **15 días** (más acorde a la operativa real).
-- Agregar badge o indicador visual de "Inactiva" directamente en la tabla de `/cards`, sin necesidad de exportar.
+### Nota sobre producción
+Si la BD de Neon tiene el valor `card_inactivity_days = '30'` (del seed anterior), hay que actualizarlo desde `/superadmin` → tab Sistema → "Días de inactividad de tarjetas" → guardar con 15.
 
 ---
 
 ## Pendientes (orden de prioridad)
 
-1. **Fix KPIs Resumen Ejecutivo** — alturas de fila (h=1) y distribución por combustible (solo 2 de 4 tipos)
-2. **Inactividad de tarjetas** — cambiar default a 15 días + badge visual en tabla de `/cards`
-3. **Seguridad (pendiente)** — timeout de sesión automático, límite de intentos de login
-4. **Dominio propio**
+1. **Credenciales de producción** — cambiar `SUPERADMIN_KEY` en Vercel env vars (actualmente `"superadmin"`) y la contraseña del usuario admin desde `/superadmin`
+2. **`card_inactivity_days` en Neon** — verificar/actualizar a 15 desde `/superadmin` → tab Sistema
+3. **Dominio propio** — configurar DNS en Vercel
+4. **3 tarjetas extra en seed** — revisar y corregir las 3 tarjetas sobrantes (seed tiene 238, deberían ser 235)
 
 ---
 
 ## Tarjetas Pendientes de Corrección (allowedFuel)
-Las 20 tarjetas con `allowedFuel="ambos"` incorrectamente asignado fueron corregidas en seed.ts.
-**Pendiente:** ejecutar `npm run reset-dev` para aplicar los cambios.
+Las 20 tarjetas con `allowedFuel="ambos"` incorrectamente asignado fueron corregidas en seed.ts y aplicadas en la BD de Neon (producción y dev) al correr el seed con `upsert`.
 
-Valores asignados:
+Valores correctos:
 - **nafta:** OHE179, AB043WX, AE377RL, AF430TL, AG857AX, AG857AY, AG857AZ, AB043WS
 - **gasoil:** aa873nz, DFJ05, AF689RJ, AF729ND, AF729WZ, AF772NP, AF747XK, AF781BZ, DOQ869, AH230ZY, AH132QR, AF734LF, AH369YQ, CQY69
 ---
