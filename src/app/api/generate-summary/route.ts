@@ -291,7 +291,26 @@ export async function GET(request: NextRequest) {
     // ── Queries ────────────────────────────────────────────────────────────
     const include = { card: true, mainArea: true }
 
-    const currLogs = await prisma.fuelLog.findMany({ where: currWhere, include })
+    // currWhere/prevWhere filtran cardId != null para cálculos de área/vehículo.
+    // Para distribución por combustible usamos una query SIN ese filtro para
+    // incluir todos los logs importados (incluso tarjetas pendientes de asignación).
+    const fuelWhere: Record<string, unknown> = { status: 'IMPORTED' }
+    if (isMonthly) {
+      fuelWhere.factura = { in: facturasParam!.split(',').filter(Boolean) }
+    } else if (factura) {
+      fuelWhere.factura = factura
+    } else if (currWhere.date) {
+      fuelWhere.date = currWhere.date
+    }
+
+    const [currLogs, allFuelLogs] = await Promise.all([
+      prisma.fuelLog.findMany({ where: currWhere, include }),
+      prisma.fuelLog.findMany({
+        where: fuelWhere,
+        select: { description: true, gallons: true, totalCost: true }
+      })
+    ])
+
     if (currLogs.length === 0) {
       return NextResponse.json({ error: 'No data found' }, { status: 404 })
     }
@@ -386,18 +405,21 @@ export async function GET(request: NextRequest) {
     const dailyValues = dailyLabels.map(k => dailyLitrosMap.get(k)!)
 
     // ── Fuel type breakdown ───────────────────────────────────────────────
+    // Usa allFuelLogs (sin filtro cardId) para capturar todos los tipos
+    // incluyendo tarjetas pendientes de asignación.
     const FUEL_NAMES = ['Nafta Super', 'Infinia', 'Infinia Diesel', 'D.Diesel 500'] as const
     type FuelName = typeof FUEL_NAMES[number]
     const fuelBreakdown = new Map<FuelName, { litros: number; importe: number }>(
       FUEL_NAMES.map(f => [f, { litros: 0, importe: 0 }])
     )
-    currLogs.forEach(l => {
-      const p = (l.description || '').toUpperCase()
+    allFuelLogs.forEach(l => {
+      const p = (l.description || '').toUpperCase().trim()
       let fk: FuelName | null = null
-      if      (p.includes('NAFTA'))                                                         fk = 'Nafta Super'
-      else if (p.includes('INFINIA') && p.includes('DIESEL'))                              fk = 'Infinia Diesel'
+      if      (p.includes('NAFTA') && !p.includes('DIESEL'))                               fk = 'Nafta Super'
+      else if (p.includes('INFINIA') && (p.includes('DIESEL') || p.includes('GAS OIL') || p.includes('GASOIL'))) fk = 'Infinia Diesel'
       else if (p.includes('INFINIA'))                                                       fk = 'Infinia'
-      else if (p.includes('D.DIESEL') || (p.includes('DIESEL') && !p.includes('INFINIA'))) fk = 'D.Diesel 500'
+      else if (p.includes('D.DIESEL') || p.includes('D. DIESEL') || p.includes('DIESEL 500')) fk = 'D.Diesel 500'
+      else if (p.includes('DIESEL') || p.includes('GAS OIL') || p.includes('GASOIL'))     fk = 'D.Diesel 500'
       if (fk) { const fd = fuelBreakdown.get(fk)!; fd.litros += l.gallons; fd.importe += l.totalCost }
     })
 
@@ -449,7 +471,14 @@ export async function GET(request: NextRequest) {
     type Col = typeof COLS[number]
     const C  = (col: Col | string, row: number) => ws.getCell(`${col}${row}`)
     const M  = (rng: string) => safeMerge(ws, rng)
-    const RH = (row: number, h: number) => { ws.getRow(row).height = h }
+    const RH = (row: number, h: number) => {
+      const r = ws.getRow(row)
+      r.height = h
+      // Forzar customHeight en el modelo interno de ExcelJS
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const model = (r as any)._model ?? (r as any).model
+      if (model) { model.height = h; model.customHeight = true }
+    }
 
     let r = 1
 
@@ -724,19 +753,22 @@ export async function GET(request: NextRequest) {
     S(C('G',r),                    { val: 'Precio / L',    bold: true, size: 10, bg: LT_BLU, border: 'thin' })
     RH(r, 16); r++
 
+    // Total de allFuelLogs para calcular porcentajes correctos
+    const totalFuelLitros = Array.from(fuelBreakdown.values()).reduce((s, f) => s + f.litros, 0)
+
     FUEL_NAMES.forEach((name, i) => {
       const fd    = fuelBreakdown.get(name) ?? { litros: 0, importe: 0 }
       const bg    = i % 2 === 0 ? WHITE : LT_BLU
-      const pctL  = curr.litros > 0 ? fd.litros  / curr.litros * 100 : 0
+      const pctL  = totalFuelLitros > 0 ? fd.litros  / totalFuelLitros * 100 : 0
       const prL   = fd.litros  > 0 ? fd.importe / fd.litros  : 0
       const empty = fd.litros === 0
       M(`A${r}:B${r}`)
-      S(C('A',r), { val: name,                                           size: 11, bg, h: 'left', border: 'thin', color: empty ? GRAY : BLCK })
-      S(C('C',r), { val: empty ? '\u2014' : `${formatNum(fd.litros,0)} L`,  size: 11, bg, border: 'thin', color: empty ? GRAY : BLCK })
-      S(C('D',r), { val: empty ? '\u2014' : `${formatNum(pctL,1)}%`,        size: 11, bg, border: 'thin', color: empty ? GRAY : BLCK })
+      S(C('A',r), { val: name,                                                  size: 11, bg, h: 'left', border: 'thin', italic: empty, color: BLCK })
+      S(C('C',r), { val: empty ? 'Sin cargas' : `${formatNum(fd.litros,0)} L`,  size: 11, bg, border: 'thin', color: empty ? GRAY : BLCK })
+      S(C('D',r), { val: empty ? '\u2014' : `${formatNum(pctL,1)}%`,            size: 11, bg, border: 'thin', color: empty ? GRAY : BLCK })
       M(`E${r}:F${r}`)
-      S(C('E',r), { val: empty ? '\u2014' : formatARS(fd.importe),          size: 11, bg, border: 'thin', color: empty ? GRAY : BLCK })
-      S(C('G',r), { val: empty ? '\u2014' : formatARS(prL),                 size: 11, bg, border: 'thin', color: empty ? GRAY : BLCK })
+      S(C('E',r), { val: empty ? '\u2014' : formatARS(fd.importe),              size: 11, bg, border: 'thin', color: empty ? GRAY : BLCK })
+      S(C('G',r), { val: empty ? '\u2014' : formatARS(prL),                     size: 11, bg, border: 'thin', color: empty ? GRAY : BLCK })
       RH(r, 15); r++
     })
 
@@ -755,7 +787,13 @@ export async function GET(request: NextRequest) {
     ]
     const C2  = (col: string, row: number) => ws2.getCell(`${col}${row}`)
     const M2  = (rng: string) => safeMerge(ws2, rng)
-    const RH2 = (row: number, h: number) => { ws2.getRow(row).height = h }
+    const RH2 = (row: number, h: number) => {
+      const r2 = ws2.getRow(row)
+      r2.height = h
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const model2 = (r2 as any)._model ?? (r2 as any).model
+      if (model2) { model2.height = h; model2.customHeight = true }
+    }
 
     M2('A1:H1')
     S(C2('A', 1), { val: orgName, bold: true, size: 14, color: WHITE, bg: NAVY, border: 'medium' })
