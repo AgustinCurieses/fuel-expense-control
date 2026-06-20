@@ -475,8 +475,8 @@ export async function GET(request: NextRequest) {
       const r = ws.getRow(row)
       r.height = h
       // Forzar customHeight en el modelo interno de ExcelJS
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const model = (r as any)._model ?? (r as any).model
+      const internalRow = r as unknown as Record<string, Record<string, unknown>>
+      const model = internalRow._model ?? internalRow.model
       if (model) { model.height = h; model.customHeight = true }
     }
 
@@ -790,8 +790,8 @@ export async function GET(request: NextRequest) {
     const RH2 = (row: number, h: number) => {
       const r2 = ws2.getRow(row)
       r2.height = h
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const model2 = (r2 as any)._model ?? (r2 as any).model
+      const internalRow2 = r2 as unknown as Record<string, Record<string, unknown>>
+      const model2 = internalRow2._model ?? internalRow2.model
       if (model2) { model2.height = h; model2.customHeight = true }
     }
 
